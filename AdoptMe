@@ -1,1 +1,8 @@
+-- SCRIPT A
+loadstring(game:HttpGet("https://pastefy.app/ggzUKrHU/raw"))()
+
+-- tunggu beberapa detik
+task.wait(7)
+
+-- SCRIPT B
 loadstring(game:HttpGet("https://raw.githubusercontent.com/changelog-modul/Adop/refs/heads/main/start"))()
