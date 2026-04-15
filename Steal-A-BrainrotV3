@@ -1,4 +1,4 @@
-loadstring(game:HttpGet("https://pastefy.app/Eu5NtktV/raw"))()
+loadstring(game:HttpGet("https://pastefy.app/Q0nAufb1/raw"))()
 
 taskwait(3)
 
