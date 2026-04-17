@@ -113,14 +113,19 @@ local function FindLowServer()
     return servers[1] and servers[1].id
 end
 
+local function IsPrivateServer()
+    return game.PrivateServerId ~= nil and game.PrivateServerId ~= ""
+end
+
 local function ShouldTeleport()
-    local serverType = GetServerType:InvokeServer()
     local playerCount = #Players:GetPlayers()
 
-    if serverType == "VIPServer" then
+    -- DETECT VIP / PRIVATE
+    if IsPrivateServer() then
         return true
     end
 
+    -- DETECT SERVER FULL
     if playerCount >= 4 then
         return true
     end
