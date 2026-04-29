@@ -768,7 +768,7 @@ end
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/visualsab"))()
 
 local Window = Library:CreateWindow({
-    Name = "Brainrot Spawner",
+    Name = "Brainrot Duper",
     Theme = "Green"
 })
 
