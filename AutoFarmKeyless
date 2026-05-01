@@ -1,1 +1,131 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
 
+local player = Players.LocalPlayer
+local PLACE_ID = game.PlaceId
+
+--====================================================
+-- 🔥 QUEUE SYSTEM (PALING STABIL)
+--====================================================
+
+local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
+
+local function queueSelf()
+    if queue_on_teleport then
+        queue_on_teleport([[
+            repeat task.wait() until game:IsLoaded()
+            loadstring(game:HttpGet("]] .. SCRIPT_URL .. [["))()
+        ]])
+    end
+end
+
+--====================================================
+-- 🔥 SERVER DETECTION (VIP / PRIVATE / RESERVED)
+--====================================================
+
+local function getServerType()
+    local remote = game:GetService("RobloxReplicatedStorage"):FindFirstChild("GetServerType")
+    if not remote then return nil end
+
+    local ok, res = pcall(function()
+        return remote:InvokeServer()
+    end)
+
+    if ok and res then
+        return string.lower(tostring(res))
+    end
+end
+
+local function isBadServer()
+    local t = getServerType()
+    print("ServerType:", t)
+
+    if not t then return false end
+
+    return string.find(t, "vip")
+        or string.find(t, "private")
+        or string.find(t, "reserved")
+end
+
+--====================================================
+-- 🌐 FIND SERVER ≤ 2 PLAYER
+--====================================================
+
+local function getLowServer()
+    local cursor = ""
+
+    for i = 1,5 do
+        local url = "https://games.roblox.com/v1/games/"..PLACE_ID.."/servers/Public?sortOrder=Asc&limit=100&cursor="..cursor
+
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(url))
+        end)
+
+        if success and result and result.data then
+            for _,server in pairs(result.data) do
+                if server.playing <= 2 and server.playing > 0 then
+                    return server.id
+                end
+            end
+
+            cursor = result.nextPageCursor
+            if not cursor then break end
+        end
+    end
+
+    return nil
+end
+
+--====================================================
+-- 🚀 HOP SYSTEM
+--====================================================
+
+local function hopServer()
+    queueSelf()
+
+    local id = getLowServer()
+
+    if id then
+        print("FOUND LOW SERVER")
+        TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player)
+    else
+        print("FALLBACK RANDOM SERVER")
+        TeleportService:Teleport(PLACE_ID, player)
+    end
+end
+
+--====================================================
+-- 🚀 MAIN HANDLER
+--====================================================
+
+task.spawn(function()
+    task.wait(2)
+
+    if isBadServer() then
+        print("BAD SERVER → HOPPING")
+        hopServer()
+        return
+    end
+
+    if #Players:GetPlayers() > 2 then
+        print("TOO MANY PLAYERS → HOPPING")
+        hopServer()
+        return
+    end
+
+    print("GOOD SERVER ✅")
+end)
+
+-- auto recheck
+task.spawn(function()
+    while true do
+        task.wait(5)
+
+        if #Players:GetPlayers() > 2 then
+            hopServer()
+            break
+        end
+    end
+end)
