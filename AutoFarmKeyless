@@ -66,7 +66,7 @@ local function isBadServer()
 end
 
 --====================================================
--- SERVER FINDER
+-- FIND SERVER
 --====================================================
 
 local function getLowServer()
@@ -130,12 +130,41 @@ end)
 
 repeat task.wait() until isGoodServer
 
+local playerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+local function killGiftText(v)
+    if not v:IsA("TextLabel") then return end
+
+    local name = string.lower(v.Name)
+    local text = string.lower(v.Text or "")
+
+    if string.find(text, "gift request sent")
+    or string.find(text, "queue")
+    or string.find(text, "decline")
+    or string.find(text, "popup")
+    then
+        v:Destroy()
+    end
+end
+
+-- initial sweep
+for _,v in ipairs(playerGui:GetDescendants()) do
+    killGiftText(v)
+end
+
+-- anti respawn
+playerGui.DescendantAdded:Connect(function(v)
+    task.wait()
+    killGiftText(v)
+end)
+
 --====================================================
--- BACKPACK FREEZE
+-- 🔥 FREEZE BACKPACK (SAFE)
 --====================================================
 
 local inv = player.PlayerGui:WaitForChild("NewInventory")
 
+-- Method 1
 for _,v in ipairs(inv:GetDescendants()) do
     if v:IsA("GuiObject") then
         pcall(function()
@@ -145,6 +174,32 @@ for _,v in ipairs(inv:GetDescendants()) do
     end
 end
 
+-- Method 2
+for _,v in ipairs(inv:GetDescendants()) do
+    if v:IsA("GuiObject") then
+        local size = v.Size
+        local pos = v.Position
+
+        v:GetPropertyChangedSignal("Size"):Connect(function()
+            v.Size = size
+        end)
+
+        v:GetPropertyChangedSignal("Position"):Connect(function()
+            v.Position = pos
+        end)
+    end
+end
+
+-- Method 3
+for _,v in ipairs(inv:GetDescendants()) do
+    if v:IsA("UIScale")
+    or v:IsA("UIGradient")
+    or v:IsA("UIStroke") then
+        v:Destroy()
+    end
+end
+
+-- Method 5
 inv.DescendantAdded:Connect(function(obj)
     if obj:IsA("UIScale")
     or obj:IsA("UIGradient")
@@ -154,10 +209,10 @@ inv.DescendantAdded:Connect(function(obj)
 end)
 
 --====================================================
--- SOUND KILL
+-- 🔇 SOUND KILL
 --====================================================
 
-local function killSounds()
+local function killTargetSounds()
     local effects = SoundService:FindFirstChild("Effects")
     if not effects then return end
 
@@ -170,46 +225,17 @@ local function killSounds()
     end
 end
 
-killSounds()
+killTargetSounds()
 
 SoundService.DescendantAdded:Connect(function(obj)
     if obj.Name == "Notification" or obj.Name == "ErrorSound" then
         task.wait()
-        killSounds()
+        killTargetSounds()
     end
 end)
 
 --====================================================
--- 🔥 NOTIF TEXT KILL (WORKING ADDITION)
---====================================================
-
-local playerGui = player:WaitForChild("PlayerGui")
-
-local function killGiftText(v)
-    if not v:IsA("TextLabel") then return end
-
-    local name = string.lower(v.Name)
-    local text = string.lower(v.Text or "")
-
-    if string.find(text, "gift request sent")
-    or string.find(text, "queue")
-    or string.find(text, "decline")
-    or string.find(text, "popup") then
-        v:Destroy()
-    end
-end
-
-for _,v in ipairs(playerGui:GetDescendants()) do
-    killGiftText(v)
-end
-
-playerGui.DescendantAdded:Connect(function(v)
-    task.wait()
-    killGiftText(v)
-end)
-
---====================================================
--- ANIM BLOCK (3 IDS VERSION)
+-- 🎬 ANIM FIX (RESTORED VERSION - 3 IDS)
 --====================================================
 
 local function getChar()
@@ -223,16 +249,17 @@ local function blockAnim(hum)
     hum.AnimationPlayed:Connect(function(track)
         local id = tostring(track.Animation.AnimationId)
 
-        if string.find(id,"507768375")
-        or string.find(id,"507768133")
-        or string.find(id,"507768083") then
+        -- ONLY 3 ANIM IDS (WORKING VERSION)
+        if string.find(id, "507768375")
+        or string.find(id, "507768133")
+        or string.find(id, "507768083") then
             track:Stop()
         end
     end)
 end
 
 --====================================================
--- TOOL CLEAN
+-- TOOL CLEAN (UNCHANGED)
 --====================================================
 
 local function disableEntityGui(tool)
@@ -276,6 +303,18 @@ local function silentEquip(tool)
     task.defer(function()
         breakToolJoints(tool)
     end)
+
+    tool.DescendantAdded:Connect(function(obj)
+        if obj:IsA("BillboardGui") or obj.Name == "EntityGUI" then
+            obj.Enabled = false
+        end
+
+        if obj:IsA("Weld")
+        or obj:IsA("Motor6D")
+        or obj:IsA("WeldConstraint") then
+            obj:Destroy()
+        end
+    end)
 end
 
 local function unequipAll()
@@ -286,6 +325,10 @@ local function unequipAll()
         end
     end
 end
+
+--====================================================
+-- RARITY
+--====================================================
 
 local function getRarity(tool)
     local model = tool:FindFirstChild(tool.Name)
