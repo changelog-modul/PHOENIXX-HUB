@@ -166,31 +166,6 @@ end)
 
 local inv = player.PlayerGui:WaitForChild("NewInventory")
 
--- Method 1
-for _,v in ipairs(inv:GetDescendants()) do
-    if v:IsA("GuiObject") then
-        pcall(function()
-            v:TweenSize(v.Size, "Out", "Linear", 0, true)
-            v:TweenPosition(v.Position, "Out", "Linear", 0, true)
-        end)
-    end
-end
-
--- Method 2
-for _,v in ipairs(inv:GetDescendants()) do
-    if v:IsA("GuiObject") then
-        local size = v.Size
-        local pos = v.Position
-
-        v:GetPropertyChangedSignal("Size"):Connect(function()
-            v.Size = size
-        end)
-
-        v:GetPropertyChangedSignal("Position"):Connect(function()
-            v.Position = pos
-        end)
-    end
-end
 
 -- Method 3
 for _,v in ipairs(inv:GetDescendants()) do
@@ -201,14 +176,6 @@ for _,v in ipairs(inv:GetDescendants()) do
     end
 end
 
--- Method 5
-inv.DescendantAdded:Connect(function(obj)
-    if obj:IsA("UIScale")
-    or obj:IsA("UIGradient")
-    or obj:IsA("UIStroke") then
-        obj:Destroy()
-    end
-end)
 
 --====================================================
 -- 🔇 SOUND KILL
