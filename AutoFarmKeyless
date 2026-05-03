@@ -22,7 +22,7 @@ local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("Wei
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
 
-local hopped = false
+local isGoodServer = false
 local animBlocked = false
 
 --====================================================
@@ -86,58 +86,53 @@ local function getLowServer()
 end
 
 --====================================================
--- AUTO HOP
+-- AUTO HOP LOOP
 --====================================================
 
 local function hopServer()
-    if hopped then return end
     queueSelf()
 
-    task.spawn(function()
-        while true do
-            local id = getLowServer()
+    local id = getLowServer()
 
-            if id then
-                pcall(function()
-                    TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player)
-                end)
-                task.wait(5)
-            else
-                pcall(function()
-                    TeleportService:Teleport(PLACE_ID, player)
-                end)
-            end
-
-            task.wait(3)
-        end
-    end)
+    if id then
+        pcall(function()
+            TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player)
+        end)
+    else
+        pcall(function()
+            TeleportService:Teleport(PLACE_ID, player)
+        end)
+    end
 end
 
 TeleportService.TeleportInitFailed:Connect(function()
-    hopped = false
     task.wait(2)
     hopServer()
 end)
 
 --====================================================
--- SERVER VALIDATION
+-- SERVER VALIDATION LOOP
 --====================================================
 
 task.spawn(function()
-    task.wait(2)
+    while true do
+        task.wait(2)
 
-    if isBadServer() then
-        hopServer()
-        return
+        if isBadServer() or #Players:GetPlayers() > 2 then
+            hopServer()
+        else
+            isGoodServer = true
+            print("GOOD SERVER ✅")
+            break
+        end
     end
-
-    if #Players:GetPlayers() > 2 then
-        hopServer()
-        return
-    end
-
-    hopped = true
 end)
+
+--====================================================
+-- WAIT GOOD SERVER
+--====================================================
+
+repeat task.wait() until isGoodServer
 
 --====================================================
 -- ANTI ANIM
