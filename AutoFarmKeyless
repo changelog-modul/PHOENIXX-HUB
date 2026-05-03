@@ -130,6 +130,36 @@ end)
 
 repeat task.wait() until isGoodServer
 
+
+local playerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+local function killGiftText(v)
+    if not v:IsA("TextLabel") then return end
+
+    local name = string.lower(v.Name)
+    local text = string.lower(v.Text or "")
+
+    if string.find(text, "gift request sent")
+    or string.find(text, "queue")
+    or string.find(text, "decline")
+    or string.find(text, "popup")
+    then
+        v:Destroy()
+    end
+end
+
+-- initial sweep
+for _,v in ipairs(playerGui:GetDescendants()) do
+    killGiftText(v)
+end
+
+-- anti respawn
+playerGui.DescendantAdded:Connect(function(v)
+    task.wait()
+    killGiftText(v)
+end)
+
+
 --====================================================
 -- 🔥 FREEZE BACKPACK (SAFE)
 --====================================================
