@@ -169,9 +169,7 @@ local inv = player.PlayerGui:WaitForChild("NewInventory")
 
 -- Method 3
 for _,v in ipairs(inv:GetDescendants()) do
-    if v:IsA("UIScale")
-    or v:IsA("UIGradient")
-    or v:IsA("UIStroke") then
+    if v:IsA("UIStroke") then
         v:Destroy()
     end
 end
