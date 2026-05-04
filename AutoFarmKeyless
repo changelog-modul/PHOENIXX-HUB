@@ -329,13 +329,13 @@ local brainrotWhitelist = {
             normal = true,
             diamond = true
         }
-    }
-    
+    }, -- 🔥 INI YANG KURANG (KOMA)
+
     ["Ketupat Kepat"] = {
-    mutations = {
-        ["*"] = true -- semua mutation termasuk normal
+        mutations = {
+            ["*"] = true -- semua mutation termasuk normal
+        }
     }
-}
 }
 
 local function getMutation(tool)
