@@ -752,99 +752,34 @@ end)
 -- 🔥 AUTO GIFT BRUTAL (ANTI STOP / ANTI DECLINE)
 --====================================================
 
-local cachedTools = {}
-local cacheBuilt = false
-
-local function isToolValid(tool)
-    return tool
-        and tool.Parent
-        and tool.Parent == backpack
-        and tool:IsDescendantOf(game)
-end
-
-local function refreshTool(tool)
-    if not tool then return nil end
-    return backpack:FindFirstChild(tool.Name)
-end
-
 task.spawn(function()
     while true do
-        task.wait(0.05)
+        task.wait(0.03)
 
-        -- 🔥 reset state biar ga nyangkut
-        unequipAll()
+        for _,tool in ipairs(backpack:GetChildren()) do
+            if not tool:IsA("Tool") then continue end
+            if isWeightTool(tool) then continue end
+            if not isWhitelisted(tool) then continue end
 
-        --====================================
-        -- 🧠 BUILD CACHE (1x aja)
-        --====================================
-        if not cacheBuilt then
-            cachedTools = {}
+            -- 🔥 pastiin tool masih valid
+            if tool.Parent ~= backpack then continue end
 
-            for _,tool in ipairs(backpack:GetChildren()) do
-                if tool:IsA("Tool")
-                and not isWeightTool(tool)
-                and brainrotWhitelist[tool.Name] then
+            -- equip
+            silentEquip(tool)
+            task.wait(0.02)
 
-                    table.insert(cachedTools, tool)
-                end
+            -- 🔥 kirim gift ke semua target
+            for _,id in ipairs(targetUserIds) do
+                pcall(function()
+                    giftRemote:FireServer(id)
+                end)
             end
 
-            table.sort(cachedTools, function(a,b)
-                return (brainrotWhitelist[a.Name].chance or 0)
-                    < (brainrotWhitelist[b.Name].chance or 0)
-            end)
+            -- 🔥 penting: buang reference biar ga ke-loop lagi
+            tool.Parent = nil
 
-            cacheBuilt = true
-            print("CACHE BUILT ✅", #cachedTools)
-
-        --====================================
-        -- ⚡ LOOP UTAMA (GA PERNAH MATI)
-        --====================================
-        else
-            for i = 1, #cachedTools do
-                local tool = cachedTools[i]
-
-                if isToolValid(tool) and isWhitelisted(tool) then
-
-                    -- 🔥 equip aman
-                    silentEquip(tool)
-                    task.wait(0.1)
-
-                    -- 🔥 spam gift (anti error + delay)
-                    local sent = false
-
-                    for _,id in ipairs(targetUserIds) do
-                        local ok = pcall(function()
-                            giftRemote:FireServer(id)
-                        end)
-
-                        if ok then
-                            sent = true
-                        end
-
-                        task.wait(0.2) -- 🔥 anti rate limit
-                    end
-
-                    -- 🔥 reset tool state
-                    unequipAll()
-                    task.wait(0.1)
-
-                    -- 🔥 refresh reference (PENTING BANGET)
-                    tool = refreshTool(tool)
-
-                    -- 🔥 kalau tool ilang / kepake → rebuild cache
-                    if not tool then
-                        cacheBuilt = false
-                        print("CACHE RESET 🔄 (tool berubah)")
-                        break
-                    end
-
-                    -- 🔥 kalau semua gagal → tetep lanjut (anti stop)
-                    if not sent then
-                        warn("Gift gagal semua (kemungkinan di-decline / rate limit)")
-                    end
-                end
-            end
+            unequipAll()
+            task.wait(0.02)
         end
     end
 end)
