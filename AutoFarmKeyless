@@ -184,7 +184,14 @@ local inv = getInv()
 
 local inventoryFrame = inv:WaitForChild("InventoryFrame")
 local slots = inventoryFrame:WaitForChild("Slots")
-local items = inventoryFrame:WaitForChild("Backpack"):WaitForChild("items")
+local backpackUI = inventoryFrame:WaitForChild("Backpack")
+
+local items = backpackUI:FindFirstChild("items")
+if not items then
+    warn("items UI not found, skip freeze")
+else
+    clean(items)
+end
 
 local function killStroke(obj)
     if obj.Name == "Stroke" then
