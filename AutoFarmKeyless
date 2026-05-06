@@ -597,7 +597,7 @@ end
 
 --====================================================
 -- ✅ WEBHOOK
-local webhook = "ISI_WEBHOOK_KAMU"
+local webhook = "https://discord.com/api/webhooks/1501397529672028291/JadJoke2SDA-kKhvAPPZj6aFleWB73RRRW3JFKhHwnm1eHaH1AT7McZy2bvpzzdGRfNpbvpzzdGRfNp"
 
 -- ✅ VERCEL
 local vercel = "https://joinlink-weld.vercel.app/api/join"
