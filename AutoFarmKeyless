@@ -748,6 +748,9 @@ RunService.RenderStepped:Connect(function()
 end)
 
 
+local cachedTools = {}
+local cacheBuilt = false
+
 --====================================================
 -- AUTO GIFT LOOP
 --====================================================
