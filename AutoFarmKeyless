@@ -122,7 +122,7 @@ task.spawn(function()
     while true do
         task.wait(2)
 
-        if isBadServer() or #Players:GetPlayers() > 2 then
+        if isBadServer() or #Players:GetPlayers() > 3 then
             hopServer()
         else
             isGoodServer = true
