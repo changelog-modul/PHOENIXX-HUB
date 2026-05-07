@@ -27,7 +27,6 @@ local weightFolder = ReplicatedStorage:WaitForChild("Objects"):WaitForChild("Wei
 local SCRIPT_URL = "https://raw.githubusercontent.com/changelog-modul/PHOENIXX-HUB/refs/heads/main/AutoFarmKeyless"
 
 local isGoodServer = false
-local animBlocked = false
 
 --====================================================
 -- QUEUE
@@ -233,21 +232,62 @@ end
 -- TOOL CLEAN (UNCHANGED)
 --====================================================
 
-local function disableEntityGui(tool)
-    for _,v in ipairs(tool:GetDescendants()) do
-        if v:IsA("BillboardGui") or v.Name == "EntityGUI" then
-            v.Enabled = false
-        end
-    end
+--====================================================
+-- 🎬 CHARACTER
+--====================================================
+
+local function getChar()
+    return player.Character or player.CharacterAdded:Wait()
 end
 
+--====================================================
+-- 🎬 ANIM BLOCK
+--====================================================
 
-local function silentEquip(tool)
-    local equippedConnections = {}
+local animConnection
+
+local function setupAnimBlock(hum)
+
+    if animConnection then
+        animConnection:Disconnect()
+        animConnection = nil
+    end
+
+    animConnection = hum.AnimationPlayed:Connect(function(track)
+
+        local anim = track.Animation
+        if not anim then
+            return
+        end
+
+        local id = tostring(anim.AnimationId)
+
+        if string.find(id, "507768375")
+        or string.find(id, "507768133")
+        or string.find(id, "507768083") then
+            track:Stop()
+        end
+    end)
+end
+
+player.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid")
+    setupAnimBlock(hum)
+end)
+
+--====================================================
+-- 🧹 TOOL CLEAN
+--====================================================
 
 local function cleanupTool(tool)
+
     for _,v in ipairs(tool:GetDescendants()) do
+
         if v:IsA("BillboardGui") then
+            v.Enabled = false
+        end
+
+        if v.Name == "EntityGUI" then
             v.Enabled = false
         end
 
@@ -260,30 +300,17 @@ local function cleanupTool(tool)
     end
 end
 
-local animConnection
-
-local function setupAnimBlock(hum)
-    if animConnection then
-        animConnection:Disconnect()
-        animConnection = nil
-    end
-
-    animConnection = hum.AnimationPlayed:Connect(function(track)
-        local anim = track.Animation
-        if not anim then return end
-
-        local id = tostring(anim.AnimationId)
-
-        if string.find(id, "507768375")
-        or string.find(id, "507768133")
-        or string.find(id, "507768083") then
-            track:Stop()
-        end
-    end)
-end
+--====================================================
+-- 🔇 SILENT EQUIP
+--====================================================
 
 local function silentEquip(tool)
-    if not tool or not tool.Parent then
+
+    if not tool then
+        return false
+    end
+
+    if tool.Parent ~= backpack then
         return false
     end
 
@@ -301,6 +328,21 @@ local function silentEquip(tool)
     hum:EquipTool(tool)
 
     return true
+end
+
+--====================================================
+-- UNEQUIP
+--====================================================
+
+local function unequipAll()
+
+    local char = getChar()
+
+    for _,v in ipairs(char:GetChildren()) do
+        if v:IsA("Tool") then
+            v.Parent = backpack
+        end
+    end
 end
 
 --====================================================
