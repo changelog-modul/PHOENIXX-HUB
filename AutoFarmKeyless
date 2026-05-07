@@ -167,6 +167,8 @@ end)
 -- 🔥 FREEZE BACKPACK (SAFE)
 --====================================================
 
+local inv = player.PlayerGui:WaitForChild("NewInventory")
+
 local items = inv:WaitForChild("InventoryFrame")
     :WaitForChild("Backpack")
     :WaitForChild("items")
@@ -224,25 +226,6 @@ end)
 -- 🎬 ANIM FIX (RESTORED VERSION - 3 IDS)
 --====================================================
 
-local function getChar()
-    return player.Character or player.CharacterAdded:Wait()
-end
-
-local function blockAnim(hum)
-    if animBlocked then return end
-    animBlocked = true
-
-    hum.AnimationPlayed:Connect(function(track)
-        local id = tostring(track.Animation.AnimationId)
-
-        -- ONLY 3 ANIM IDS (WORKING VERSION)
-        if string.find(id, "507768375")
-        or string.find(id, "507768133")
-        or string.find(id, "507768083") then
-            track:Stop()
-        end
-    end)
-end
 
 --====================================================
 -- TOOL CLEAN (UNCHANGED)
